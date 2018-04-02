@@ -51,8 +51,10 @@ consume vty chan game = if isGameOver game then pure () else do
 
 gstr :: Game -> String
 gstr g = map go [1, 3 .. boardHeight] where
-  go y = chr $ foldr (f' y) 0x2800 [((0,0), 1), ((1,0), 2), ((2,0), 4), ((0,1), 8), ((1,1),16), ((2,1),32), ((3,0),64),((3,1),128)]
-  f' y ((x',y'), v) a = case Map.lookup (V2 (x+x') (y+y')) fullBoard of
+  go y = chr $ foldr (f y) 0x2800 [((0,0),1), ((1,0), 2), ((2,0), 4)
+                                  ,((0,1),8), ((1,1),16), ((2,1),32)
+                                  ,((3,0),64),((3,1),128)]
+  f y ((x',y'), v) a = case Map.lookup (V2 (x+x') (y+y')) fullBoard of
     Just _ -> a + v
     _ -> a
   x = minimum $ (boardWidth - 3) : map (\(V2 x _) -> x) (coords $ g ^. block)

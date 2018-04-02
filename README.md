@@ -1,4 +1,4 @@
 # betris
 
-A vertical version of tetris for braille display users.
+A horizontal version of tetris for braille display users.
 
