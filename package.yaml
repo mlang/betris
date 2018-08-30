@@ -13,10 +13,7 @@ extra-source-files:
 synopsis:            Braille friendly horizontal version of tetris
 category:            Game
 
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on Github at <https://github.com/mlang/betris#readme>
+description:         Please see the README at <https://github.com/mlang/betris#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -32,7 +29,7 @@ library:
   source-dirs: src
 
 executables:
-  betris-exe:
+  betris:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
