@@ -4,6 +4,7 @@
 module Main where
 
 import Control.Concurrent (forkIO, threadDelay)
+import Control.Concurrent.STM.TVar
 import Control.Concurrent.STM.TBChan
 import Control.Lens
 import Control.Monad (forever)
@@ -23,13 +24,16 @@ main = do
   vty <- mkVty defaultConfig
   chan <- atomically $ newTBChan 10
   game <- initGame 0
+  speed <- newTVarIO 1000000
 
   forkIO $ forever $ do
     e <- nextEvent vty
     atomically $ writeTBChan chan $ Ev e
 
   forkIO $ forever $ do
-    threadDelay 1000000
+    delay <- readTVarIO speed
+    atomically $ modifyTVar speed ((-) 100)
+    threadDelay delay
     atomically $ writeTBChan chan Tick
 
   consume vty chan game
