@@ -27,9 +27,9 @@ data Options = Options { initialDelay :: Int } deriving Eq
 
 programOptions :: Parser Options
 programOptions =
-  Options <$> option auto (long "initial-delay" <>
-                           value 1000000 <>
-                           help "Initial delay in microseconds")
+  Options <$> option auto (long "initial-delay" <> metavar "MICROSECONDS" <>
+                           value 1000000 <> showDefault <>
+                           help "Initial delay")
 
 data Event e = Tick | Ev e deriving (Eq, Read, Show, Functor)
 
