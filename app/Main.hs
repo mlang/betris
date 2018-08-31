@@ -1,12 +1,13 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM.TVar
 import Control.Concurrent.STM.TBChan
-import Control.Lens
+import Control.Lens hiding (argument)
 import Control.Monad (forever)
 import Control.Monad.STM (atomically)
 import Data.Char (chr)
@@ -17,24 +18,39 @@ import Game.Tetris
 import Graphics.Vty
 import Linear.V2 (V2(..))
 import Prelude hiding (Left, Right)
+import Options.Applicative hiding ((<|>))
+
+versionOption :: Parser (a -> a)
+versionOption = infoOption "0.1.0.1" (long "version" <> help "Show version")
+
+data Options = Options { initialDelay :: Int } deriving Eq
+
+programOptions :: Parser Options
+programOptions =
+  Options <$> option auto (long "initial-delay" <>
+                           value 1000000 <>
+                           help "Initial delay in microseconds")
 
 data Event e = Tick | Ev e deriving (Eq, Read, Show, Functor)
 
 main = do
+  Options {..} <- execParser $
+    info (helper <*> versionOption <*> programOptions)
+         (fullDesc <> progDesc "Braille Tetris")
   vty <- mkVty defaultConfig
   chan <- atomically $ newTBChan 10
   game <- initGame 0
-  speed <- newTVarIO 1000000
+  speed <- newTVarIO initialDelay
 
   forkIO $ forever $ do
     e <- nextEvent vty
     atomically $ writeTBChan chan $ Ev e
 
   forkIO $ forever $ do
+    atomically $ writeTBChan chan Tick
     delay <- readTVarIO speed
     atomically $ modifyTVar speed ((-) 100)
     threadDelay delay
-    atomically $ writeTBChan chan Tick
 
   consume vty chan game
 

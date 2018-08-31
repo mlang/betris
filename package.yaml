@@ -20,6 +20,7 @@ dependencies:
 - containers
 - lens
 - linear
+- optparse-applicative
 - random
 - stm
 - stm-chans
