@@ -1,5 +1,5 @@
 name:                betris
-version:             0.1.0.1
+version:             0.1.0.2
 github:              "mlang/betris"
 license:             BSD3
 author:              "Mario Lang"
@@ -9,7 +9,6 @@ copyright:           "2018 Mario Lang"
 extra-source-files:
 - README.md
 
-# Metadata used when publishing your package
 synopsis:            Braille friendly horizontal version of tetris
 category:            Game
 

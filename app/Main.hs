@@ -21,7 +21,7 @@ import Prelude hiding (Left, Right)
 import Options.Applicative hiding ((<|>))
 
 versionOption :: Parser (a -> a)
-versionOption = infoOption "0.1.0.1" (long "version" <> help "Show version")
+versionOption = infoOption "0.1.0.2" (long "version" <> help "Show version")
 
 data Options = Options { initialDelay :: Int } deriving Eq
 
