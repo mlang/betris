@@ -1,5 +1,5 @@
-resolver: lts-12.8
+resolver: lts-12.9
 packages:
 - .
 extra-deps:
-  - time-units-1.0.0
+- time-units-1.0.0
