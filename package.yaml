@@ -9,21 +9,22 @@ copyright:           "2018 Mario Lang"
 extra-source-files:
 - README.md
 
-synopsis:            Braille friendly horizontal version of tetris
+synopsis:            A horizontal version of tetris for braille users
 category:            Game
 
 description:         Please see the README at <https://github.com/mlang/betris#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- containers
-- lens
-- linear
-- optparse-applicative
-- random
-- stm
-- stm-chans
-- vty
+- base                 >= 4.11.0 && < 4.12
+- containers           >= 0.5.7 && < 0.6
+- lens                 >= 4.16.0 && < 4.17
+- linear               >= 1.20.7 && < 1.21
+- optparse-applicative >= 0.14.2 && < 0.15
+- random               >= 1.1 && < 1.2
+- stm                  >= 2.4.5 && < 2.5
+- stm-chans            >= 3.0.0 && < 3.1
+- time-units           >= 1.0.0 && < 1.1
+- vty                  >= 5.21 && < 5.24
 
 library:
   source-dirs: src
