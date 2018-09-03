@@ -5,7 +5,7 @@
 module Command.Betris (command, Options(..), betris) where
 
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Concurrent.STM.TBChan
+import Control.Concurrent.STM.TChan
 import Control.Lens hiding (argument)
 import Control.Monad (forever)
 import Control.Monad.STM (atomically)
@@ -36,34 +36,34 @@ data Event e = Tick | Ev e deriving (Eq, Read, Show, Functor)
 betris :: Options -> IO ()
 betris Options{..} = do
   vty <- mkVty =<< userConfig
-  chan <- newTBChanIO 10
+  chan <- newTChanIO
   game <- initGame 0
   speed <- newIORef $ fromIntegral $ toMicroseconds initialDelay
 
-  forkIO $ forever $ nextEvent vty >>= atomically . writeTBChan chan . Ev
+  forkIO $ forever $ nextEvent vty >>= atomically . writeTChan chan . Ev
   forkIO $ forever $ do
     readIORef speed >>= threadDelay
     modifyIORef speed ((-) 500)
-    atomically $ writeTBChan chan Tick
+    atomically $ writeTChan chan Tick
 
   _ <- play vty chan game
   shutdown vty
   putStrLn ""
 
-play :: Vty -> TBChan (Event Vty.Event) -> Game -> IO Int
+play :: Vty -> TChan (Event Vty.Event) -> Game -> IO Game
 play vty chan tetris
-  | isGameOver tetris = pure $ tetris ^. score
+  | isGameOver tetris = pure tetris
   | otherwise = do
     update vty $ picForImage $
       string defAttr (emboss tetris) <|> string defAttr (show $ tetris ^. score)
-    e <- atomically $ readTBChan chan
+    e <- atomically $ readTChan chan
     case e of
       Tick                 -> play vty chan =<< timeStep tetris
       Ev (EvKey KLeft [])  -> play vty chan $ hardDrop tetris
       Ev (EvKey KUp [])    -> play vty chan $ Left `shift` tetris
       Ev (EvKey KDown [])  -> play vty chan $ Right `shift` tetris
       Ev (EvKey KEnter []) -> play vty chan $ rotate tetris
-      Ev (EvKey KEsc [])   -> pure $ tetris ^. score
+      Ev (EvKey KEsc [])   -> pure tetris
       _                    -> play vty chan tetris
 
 emboss :: Game -> String
