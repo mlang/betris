@@ -13,6 +13,7 @@ import Data.Char (chr)
 import Data.Foldable (for_)
 import Data.IORef
 import qualified Data.Map as Map
+import Data.Semigroup ((<>))
 import Data.Time.Units
 import Data.Version (showVersion)
 import Game.Tetris
