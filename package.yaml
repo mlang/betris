@@ -1,18 +1,19 @@
-name:                betris
-version:             0.1.1.0
-github:              "mlang/betris"
-license:             BSD3
-author:              "Mario Lang"
-maintainer:          "mlang@blind.guru"
-copyright:           "2018 Mario Lang"
+name: betris
+version: 0.1.1.1
+github: "mlang/betris"
+license: BSD3
+author: "Mario Lang"
+maintainer: "mlang@blind.guru"
+copyright: "2018 Mario Lang"
 
 extra-source-files:
 - README.md
 
-synopsis:            A horizontal version of tetris for braille users
-category:            Game
-
-description:         Please see the README at <https://github.com/mlang/betris#readme>
+synopsis: A horizontal version of tetris for braille users
+category: Game
+description: The game of tetris for braille display users, implemented using
+  unicode braille rotated 90 degrees.  Tetriminos are "falling" from right to
+  left.
 
 dependencies:
 - base                 >= 4.9.0 && < 4.12
