@@ -20,19 +20,18 @@ module Game.Tetris
 , board, shape, score, block, coords
 ) where
 
+import Control.Lens hiding ((:<), (<|), (|>), (:>))
+import Data.Bool (bool)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Sequence (ViewL(..), ViewR(..), (<|), (|>), (><))
-import qualified Data.Sequence as Seq
-import Control.Lens hiding ((:<), (<|), (|>), (:>))
-import Linear.V2 (V2(..), _x, _y)
-import qualified Linear.V2 as LV
-import System.Random (getStdRandom, randomR)
-
-import Prelude hiding (Left, Right)
-import Data.Bool (bool)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First(..))
+import Data.Sequence (ViewL(..), ViewR(..), (<|), (|>), (><))
+import qualified Data.Sequence as Seq
+import Linear.V2 (V2(..), _x, _y)
+import qualified Linear.V2 as LV
+import Prelude hiding (Left, Right)
+import System.Random (getStdRandom, randomR)
 
 -- Types and instances
 

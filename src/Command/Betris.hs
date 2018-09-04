@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecordWildCards #-}
 module Command.Betris (command, Options(..), betris) where
@@ -57,8 +58,7 @@ play vty chan tetris
   | otherwise = do
     update vty $ picForImage $
       string defAttr (emboss tetris) <|> string defAttr (show $ tetris ^. score)
-    e <- atomically $ readTChan chan
-    case e of
+    atomically (readTChan chan) >>= \case
       Tick                 -> play vty chan =<< timeStep tetris
       Ev (EvKey KLeft [])  -> play vty chan $ hardDrop tetris
       Ev (EvKey KUp [])    -> play vty chan $ Left `shift` tetris
