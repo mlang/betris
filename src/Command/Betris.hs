@@ -28,7 +28,7 @@ import Options.Applicative hiding (command, (<|>))
 command :: Parser (IO ())
 command = betris <$> (versionOption <*> programOptions)
 
-data Options = Options { initialDelay :: Millisecond } deriving (Eq, Show)
+newtype Options = Options { initialDelay :: Millisecond } deriving (Eq, Show)
 
 programOptions :: Parser Options
 programOptions = Options <$> initialDelayOption
@@ -42,10 +42,10 @@ betris Options{..} = do
   game <- initGame 0
   speed <- newIORef $ fromIntegral $ toMicroseconds initialDelay
 
-  forkIO $ forever $ nextEvent vty >>= atomically . writeTChan chan . Ev
-  forkIO $ forever $ do
+  _ <- forkIO $ forever $ nextEvent vty >>= atomically . writeTChan chan . Ev
+  _ <- forkIO $ forever $ do
     readIORef speed >>= threadDelay
-    modifyIORef speed ((-) 500)
+    modifyIORef speed (subtract 500)
     atomically $ writeTChan chan Tick
 
   _ <- play vty chan game

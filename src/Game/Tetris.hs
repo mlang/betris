@@ -124,8 +124,8 @@ rotate' b@(Block s o@(V2 xo yo) cs)
   where
     rotateWith :: (Coord -> Coord) -> Block
     rotateWith dir   = b & extra %~ fmap dir
-    clockwise        = (+ o) . (cwperp) . (subtract o)
-    counterclockwise = (+ o) . LV.perp . (subtract o)
+    clockwise        = (+ o) . cwperp . subtract o
+    counterclockwise = (+ o) . LV.perp . subtract o
     cwperp (V2 x y)  = V2 y (-x)
 
 -- | Get coordinates of entire block
@@ -142,7 +142,7 @@ bagFourTetriminoEach = go . Seq.viewl
   where
     go (t :< ts) = pure (t, ts)
     go EmptyL = freshList >>= bagFourTetriminoEach
-    freshList = shuffle . Seq.fromList . take 28 . cycle $ [(I)..]
+    freshList = shuffle . Seq.fromList . take 28 . cycle $ [I ..]
 
 -- | Initialize a game with a given level
 initGame :: Int ->  IO Game
@@ -170,7 +170,7 @@ timeStep g =
 -- TODO check if mapKeysMonotonic works
 clearFullRows :: Game -> Game
 clearFullRows g = g & board %~ clearBoard
-                    & rowClears %~ (addToRowClears rowCount)
+                    & rowClears %~ addToRowClears rowCount
   where
     clearBoard               = M.mapKeys shiftCoordAbove . M.filterWithKey notInFullRow
     notInFullRow (V2 _ y) _  = y `notElem` fullRowIndices
@@ -191,11 +191,11 @@ updateScore :: Game -> Game
 updateScore g = g & score %~ (+ newPoints)
   where
     newPoints = (1 + g ^. level) * (g ^. rowClears ^. to latestOrZero ^. to points)
-    points 0  = 0
-    points 1  = 40
-    points 2  = 100
-    points 3  = 300
-    points n  = 800
+    points 0 = 0
+    points 1 = 40
+    points 2 = 100
+    points 3 = 300
+    points _ = 800
 
 -- | Empties row on 0, otherwise appends value (just keeps consecutive information)
 addToRowClears :: Int -> Seq.Seq Int -> Seq.Seq Int
@@ -226,7 +226,7 @@ blockStopped g = isStopped (g ^. board) (g ^. block)
 -- | Check if a block on a board is stopped from further gravitation
 isStopped :: Board -> Block -> Bool
 isStopped brd = any cStopped . coords
-  where cStopped     = (||) <$> inRow1 <*> (`M.member` brd) . (translate Down)
+  where cStopped     = (||) <$> inRow1 <*> (`M.member` brd) . translate Down
         inRow1 (V2 _ y) = y == 1
 
 hardDrop :: Game -> Game
@@ -234,7 +234,7 @@ hardDrop g = g & block  .~ hardDroppedBlock g
 
 hardDroppedBlock :: Game -> Block
 hardDroppedBlock g = translateBy n Down $ g ^. block
-  where n = minimum $ (subtract 1) <$> (minY : diffs)
+  where n = minimum $ subtract 1 <$> (minY : diffs)
         diffs = [y - yo | (V2 xo yo) <- brdCs, (V2 x y) <- blkCs, xo == x, yo < y]
         brdCs = g ^. board ^. to M.keys
         blkCs = g ^. block ^. to coords
@@ -242,9 +242,9 @@ hardDroppedBlock g = translateBy n Down $ g ^. block
 
 -- | Freeze current block
 freezeBlock :: Game -> Game
-freezeBlock g = g & board %~ (M.union blkMap)
+freezeBlock g = g & board %~ M.union blkMap
   where blk    = g ^. block
-        blkMap = M.fromList $ [(c, blk ^. shape) | c <- blk ^. to coords]
+        blkMap = M.fromList [(c, blk ^. shape) | c <- blk ^. to coords]
 
 -- | Replace block with next block
 nextBlock :: Game -> IO Game

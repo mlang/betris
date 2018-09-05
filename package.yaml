@@ -1,5 +1,5 @@
 name: betris
-version: 0.1.1.1
+version: 0.2.0.0
 github: "mlang/betris"
 license: BSD3
 author: "Mario Lang"
@@ -16,6 +16,7 @@ description: The game of tetris for braille display users, implemented using
   left.
 
 tested-with: GHC == 8.0.1, GHC == 8.4.3
+ghc-options: -Wall
 
 dependencies:
 - base                 >= 4.9.0 && < 4.12
