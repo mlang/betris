@@ -5,6 +5,7 @@ import Control.Monad (join)
 import Data.Semigroup ((<>))
 import Options.Applicative
 
+main :: IO ()
 main = join $ execParser $ info (helper <*> Betris.command) $
     fullDesc
  <> progDesc "Braille Tetris"
