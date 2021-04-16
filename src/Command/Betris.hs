@@ -14,7 +14,6 @@ import Control.Monad.STM (atomically)
 import Data.Char (chr)
 import Data.IORef
 import qualified Data.Map as Map
-import Data.Semigroup ((<>))
 import Data.Time.Units
 import Data.Version (showVersion)
 import Game.Tetris
@@ -43,13 +42,13 @@ betris Options{..} = do
   input <- inputForConfig =<< userConfig
   chan <- newTChanIO
   game <- initGame 0
-  speed <- newIORef $ fromIntegral $ toMicroseconds initialDelay
+  delay <- newIORef $ fromIntegral $ toMicroseconds initialDelay
 
   _ <- forkIO . forever . atomically $
     readTChan (_eventChannel input) >>= writeTChan chan . Ev
   _ <- forkIO $ forever $ do
-    readIORef speed >>= threadDelay
-    modifyIORef speed (subtract 500)
+    readIORef delay >>= threadDelay
+    modifyIORef delay (subtract 100)
     atomically $ writeTChan chan Tick
 
   _ <- play chan game
@@ -67,6 +66,7 @@ play chan tetris
     hFlush stdout
     atomically (readTChan chan) >>= \case
       Tick                 -> play chan =<< timeStep tetris
+      Ev (EvKey (KChar ' ') []) -> play chan =<< timeStep tetris
       Ev (EvKey KLeft [])  -> play chan $ hardDrop tetris
       Ev (EvKey KUp [])    -> play chan $ Left `shift` tetris
       Ev (EvKey KDown [])  -> play chan $ Right `shift` tetris
@@ -94,7 +94,7 @@ initialDelayOption = option auto $
     long "initial-delay"
  <> short 'i'
  <> metavar "DURATION"
- <> value (fromMicroseconds 1000000)
+ <> value (fromMicroseconds 1500000)
  <> showDefault
  <> help "Initial delay"
 
