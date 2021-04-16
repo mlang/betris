@@ -17,7 +17,8 @@ module Game.Tetris
 , boardWidth, boardHeight
 , initGame, isGameOver
 , timeStep, rotate, shift, hardDrop
-, board, shape, score, block, coords
+, Translatable(..)
+, board, shape, origin, score, block, coords, nextShape, initBlock
 ) where
 
 import Control.Lens hiding ((:<), (<|), (|>), (:>))

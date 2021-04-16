@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Command.Betris (command, Options(..), betris) where
 
+import Prelude hiding (Left, Right)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM.TChan
 import Control.Lens hiding (argument)
@@ -74,15 +75,18 @@ play chan tetris
       _                    -> play chan tetris
 
 emboss :: Game -> String
-emboss game = map go [1, 3 .. boardHeight] where
+emboss game = map go [1, 3 .. boardHeight + 6] where
   go y = chr $ foldr (f y) 0x2800 [((0,0),1), ((1,0), 2), ((2,0), 4)
                                   ,((0,1),8), ((1,1),16), ((2,1),32)
                                   ,((3,0),64),((3,1),128)]
   f y ((x',y'), v) a = case Map.lookup (V2 (x+x') (y+y')) fullBoard of
     Just _ -> a + v
     _ -> a
-  x = minimum $ (boardWidth - 3) : map (^. _x) (coords $ game ^. block)
-  fullBoard = game ^. board <> blk (game ^. block)
+  minx b = minimum $ (boardWidth - 3) : map (^. _x) (coords b)
+  x = minx (game ^. block)
+  fullBoard = game ^. board <> blk (game ^. block) <> blk next
+  next = let b = initBlock (game ^. nextShape) in
+         translateBy (-4) Down $ translateBy (x - minx b) Right b
   blk b = Map.fromList $ map (, b ^. shape) $ coords b
 
 initialDelayOption :: Parser Millisecond
