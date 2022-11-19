@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell   #-}
 -------------------------------------------------------------------------------
 -- |
 -- Module      :  Game.Tetris
@@ -21,18 +21,19 @@ module Game.Tetris
 , board, shape, origin, score, block, coords, nextShape, initBlock
 ) where
 
-import Control.Lens hiding ((:<), (<|), (|>), (:>))
-import Data.Bool (bool)
-import Data.Map (Map)
-import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
-import Data.Monoid (First(..))
-import Data.Sequence (ViewL(..), ViewR(..), (<|), (|>), (><))
+import           Data.Bool     (bool)
+import           Data.Map      (Map)
+import qualified Data.Map      as M
+import           Data.Maybe    (fromMaybe)
+import           Data.Monoid   (First (..))
+import           Data.Sequence (ViewL (..), ViewR (..), (<|), (><), (|>))
 import qualified Data.Sequence as Seq
-import Linear.V2 (V2(..), _x, _y)
-import qualified Linear.V2 as LV
-import Prelude hiding (Left, Right)
-import System.Random (getStdRandom, randomR)
+import           Lens.Micro    hiding ((:<), (:>), (<|), (|>))
+import           Lens.Micro.TH (makeLenses)
+import           Linear.V2     (V2 (..), _x, _y)
+import qualified Linear.V2     as LV
+import           Prelude       hiding (Left, Right)
+import           System.Random (getStdRandom, randomR)
 
 -- Types and instances
 
@@ -142,7 +143,7 @@ bagFourTetriminoEach :: Seq.Seq Tetrimino -> IO (Tetrimino, Seq.Seq Tetrimino)
 bagFourTetriminoEach = go . Seq.viewl
   where
     go (t :< ts) = pure (t, ts)
-    go EmptyL = freshList >>= bagFourTetriminoEach
+    go EmptyL    = freshList >>= bagFourTetriminoEach
     freshList = shuffle . Seq.fromList . take 28 . cycle $ [I ..]
 
 -- | Initialize a game with a given level
@@ -206,7 +207,7 @@ addToRowClears n rs = rs |> n
 -- | Get last value of sequence or 0 if empty
 latestOrZero :: Seq.Seq Int -> Int
 latestOrZero = go . Seq.viewr
-  where go EmptyR = 0
+  where go EmptyR   = 0
         go (_ :> n) = n
 
 -- | Handle counterclockwise block rotation (if possible)

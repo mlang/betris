@@ -1,8 +1,8 @@
 module Main where
 
-import qualified Command.Betris as Betris
-import Control.Monad (join)
-import Options.Applicative
+import qualified Command.Betris      as Betris
+import           Control.Monad       (join)
+import           Options.Applicative
 
 main :: IO ()
 main = join $ execParser $ info (helper <*> Betris.command) $
