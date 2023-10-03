@@ -1,5 +1,5 @@
 name: betris
-version: 0.2.3.0
+version: 0.2.3.1
 github: "mlang/betris"
 license: BSD3
 author: "Mario Lang"
@@ -22,7 +22,7 @@ dependencies:
 - ansi-terminal
 - base                 >= 4.9.0 && < 5
 - containers           >= 0.5.7 && < 0.7
-- linear               >= 1.20.7 && < 1.22
+- linear               >= 1.20.7 && < 1.23
 - microlens
 - microlens-th
 - optparse-applicative >= 0.14.2 && < 0.18
