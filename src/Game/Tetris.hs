@@ -21,14 +21,13 @@ module Game.Tetris
 , board, shape, origin, score, block, coords, nextShape, initBlock
 ) where
 
-import           Data.Bool     (bool)
 import           Data.Map      (Map)
 import qualified Data.Map      as M
 import           Data.Maybe    (fromMaybe)
 import           Data.Monoid   (First (..))
 import           Data.Sequence (ViewL (..), ViewR (..), (<|), (><), (|>))
 import qualified Data.Sequence as Seq
-import           Lens.Micro    hiding ((:<), (:>), (<|), (|>))
+import           Lens.Micro
 import           Lens.Micro.TH (makeLenses)
 import           Linear.V2     (V2 (..), _x, _y)
 import qualified Linear.V2     as LV
