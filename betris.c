@@ -365,7 +365,7 @@ static inline bool is_complete_line(short y)
   return (board[y] ^ mask) == 0;
 }
 
-static const int points_per_line[] = { 0, 40, 100, 300, 1200 };
+static const int points_per_line[] = { 1, 40, 100, 300, 1200 };
 
 static int eliminate_lines()
 {
@@ -417,16 +417,10 @@ static bool do_move_down()
 }
 
 static void move_down()
-{
-  if (do_move_down())
-    handle_piece_bottom();
-}
+{ if (do_move_down()) handle_piece_bottom(); }
 
 static void move_bottom()
-{
-  while (!do_move_down());
-  handle_piece_bottom();
-}
+{ while (!do_move_down()); handle_piece_bottom(); }
 
 static void move_left()
 {
@@ -448,10 +442,10 @@ static void move_right()
 
 static void rotate()
 {
+  const int rotation = current_piece.rotation;
   remove_current_piece();
-  current_piece.rotation = (current_piece.rotation + 1) % 4;
-  if (check_overlap())
-    current_piece.rotation = (current_piece.rotation - 1) % 4;
+  current_piece.rotation = (rotation + 1) % 4;
+  if (check_overlap()) current_piece.rotation = rotation;
   add_current_piece();
 }
 
