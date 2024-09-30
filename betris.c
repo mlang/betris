@@ -324,6 +324,9 @@ static const unsigned char brl[2][4] = {
   { dot4, dot5, dot6, dot8 }, { dot1, dot2, dot3, dot7 }
 };
 
+static int score = 0;
+static short level = 1;
+
 static void draw_screen()
 {
   unsigned char line[11] = {0};
@@ -341,13 +344,11 @@ static void draw_screen()
     *p++ = 0x80 | (line[i] & 0x3F);
   }
 
-  printf("\r");
+  write(STDOUT_FILENO, "\e[2J\e[H", 7);
   write(STDOUT_FILENO, utf8, sizeof(utf8));
+  printf("  %d points, level %d\e[1;14H", score, level);
   fflush(stdout);
 }
-
-static short level = 1;
-static int score = 0;
 
 static void new_game()
 {
@@ -449,43 +450,64 @@ static void rotate()
   add_current_piece();
 }
 
+static void welcome()
+{
+  printf("\e[2J"
+         "\e[2;8H" "Welcome to Braille Tetris (BETRIS)"
+         "\e[4;1H" "Instructions:"
+         "\e[5;1H" "1. The pieces \"fall\" from right to left."
+         "\e[6;1H" "2. The display shows a 4-dot high section of the board."
+         "\e[7;1H" "3. Use the following keys to control the pieces:"
+         "\e[8;4H"    "- 'h' or LEFT ARROW: Move piece down"
+         "\e[9;4H"    "- 'k' or UP ARROW: Move piece left"
+         "\e[10;4H"   "- 'j' or DOWN ARROW: Move piece right"
+         "\e[11;4H"   "- RIGHT ARROW or ENTER: Rotate piece"
+         "\e[12;4H"   "- SPACE: Drop piece to the bottom"
+         "\e[13;4H"   "- 'q' or ESC: Quit the game"
+         "\e[15;1H" "Press any key to start the game..."
+         "\e[15;1H"
+  );
+  fflush(stdout);
+  read_key();
+}
+
 int main()
 {
-  initialize_timer();
   enable_raw_mode();
+  welcome();
+  initialize_timer();
   new_game();
   draw_screen();
   set_timer_interval(800000 * pow(0.9, level));
 
   for (;;) {
     switch (read_key()) {
+    case 'h':
+    case ARROW_LEFT:
     case TICK:
       move_down();
-      draw_screen();
       break;
     case 'k':
     case ARROW_UP:
       move_left();
-      draw_screen();
       break;
     case 'j':
     case ARROW_DOWN:
       move_right();
-      draw_screen();
       break;
-    case ' ':
+    case ARROW_RIGHT:
     case CTRL('M'):
       rotate();
-      draw_screen();
       break;
-    case 'h':
-    case ARROW_LEFT:
+    case ' ':
       move_bottom();
-      draw_screen();
       break;
     case 'q':
+    case CTRL('Q'):
     case CTRL('['):
+      write(STDOUT_FILENO, "\e[2J\e[5;5HThanks for playing betris\r\n\r\n", 39);
       exit(EXIT_SUCCESS);
     }
+    draw_screen();
   }
 }
