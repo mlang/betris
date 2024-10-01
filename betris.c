@@ -15,7 +15,7 @@
 enum piece { I, O, L, J, T, S, Z };
 enum { PIECES = Z + 1, ROTATIONS = 4, WIDTH = 10, HEIGHT = 22 };
 
-static const unsigned short tetrimino[PIECES][ROTATIONS] =
+static const unsigned short tetromino[PIECES][ROTATIONS] =
 { [I] = { 0x8888, 0xF000, 0x8888, 0xF000 }
 , [O] = { 0xCC00, 0xCC00, 0xCC00, 0xCC00 }
 , [L] = { 0xC880, 0xE200, 0x44C0, 0x8E00 }
@@ -26,7 +26,7 @@ static const unsigned short tetrimino[PIECES][ROTATIONS] =
 };
 
 static inline bool test_piece(enum piece kind, unsigned char rotation, short y, short x)
-{ return tetrimino[kind][rotation] & (0x8000 >> (y*4 + x)); }
+{ return tetromino[kind][rotation] & (0x8000 >> (y*4 + x)); }
 
 struct piece_info
 {
@@ -471,21 +471,22 @@ static void welcome()
   fputs("\e[2J"
         "\e[2;8H" "Welcome to BETRIS"
         "\e[4;1H" "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
-        "\e[5;1H" "Tetriminos, fall from the right to the left of the screen. The player's goal"
-        "\e[6;1H" "is to move and rotate these Tetriminos to create complete vertical lines, which"
-        "\e[7;1H" "then disappear, making space for new Tetriminos. The game ends when there's no"
-        "\e[8;1H" "more space for new Tetriminos. The vertical size of the playfield is 10, while"
-        "\e[9;1H" "the braille display will only show a 4-dot high section of the board."
-        "\e[11;1H" "Instructions:"
-        "\e[12;1H" "1. Use the following keys to control the pieces:"
-        "\e[13;4H"    "- UP ARROW: Move piece up"
-        "\e[14;4H"    "- DOWN ARROW: Move piece down"
-        "\e[15;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
-        "\e[16;4H"    "- LEFT ARROW: Move piece left"
-        "\e[17;4H"    "- SPACE: Drop piece to the bottom"
-        "\e[18;4H"    "- 'q' or ESC: Quit the game"
-        "\e[20;1H" "Press any key to start the game..."
-        "\e[20;1H", stdout
+        "\e[5;1H" "Tetrominos, fall from the right to the left of the screen. Tetrominos are"
+        "\e[6;1H" "composed of 4 connected dots. The player's goal is to move and rotate"
+        "\e[7;1H" "these Tetrominos to create complete vertical lines, which then disappear,"
+        "\e[8;1H" "making space for new Tetrominos. The game ends when there's no more space"
+        "\e[9;1H" "for new Tetrominos. The vertical size of the playfield is 10, while the"
+        "\e[10;1H" "braille display will only show a 4-dot high section of the board."
+        "\e[12;1H" "Instructions:"
+        "\e[13;1H" "1. Use the following keys to control the pieces:"
+        "\e[14;4H"    "- UP ARROW: Move piece up"
+        "\e[15;4H"    "- DOWN ARROW: Move piece down"
+        "\e[16;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
+        "\e[17;4H"    "- LEFT ARROW: Move piece left"
+        "\e[18;4H"    "- SPACE: Drop piece to the bottom"
+        "\e[19;4H"    "- 'q' or ESC: Quit the game"
+        "\e[21;1H" "Press any key to start the game..."
+        "\e[21;1H", stdout
   );
   fflush(stdout);
   read_key();
