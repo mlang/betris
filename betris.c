@@ -1,3 +1,6 @@
+/*  A single-file, libc-only implementation of Tetris for braille displays.  */
+/* Meant to be built with Cosmopolitan Libc for a cross-platform fat binary. */
+
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -32,12 +35,6 @@ struct piece_info
   signed char x, y;
 };
 
-static struct piece_info random_piece()
-{
-  struct piece_info info = { rand() % PIECES, rand() % ROTATIONS, 4, 3 };
-  return info;
-}
-
 static unsigned short board[HEIGHT];
 
 static inline bool test_board(short y, short x)
@@ -49,7 +46,28 @@ static inline bool set_board(short y, short x)
 static inline bool clear_board(short y, short x)
 { return board[y] &= ~(1 << x); }
 
-static struct piece_info current_piece, next_piece;
+static struct piece_info bag[PIECES * 4];
+static short bag_count = 0;
+
+static struct piece_info random_piece()
+{
+  if (!bag_count) {
+    bag_count = sizeof(bag) / sizeof(*bag);
+    for (short i = 0; i != bag_count; i++)
+      bag[i] = (struct piece_info){ i % PIECES, rand() % ROTATIONS, 4, 3 };
+
+    for (short i = bag_count - 1; i > 0; i--) {
+      const short j = rand() % (i + 1);
+      struct piece_info tmp = bag[i];
+      bag[i] = bag[j];
+      bag[j] = tmp;
+    }
+  }
+
+  return bag[--bag_count];
+}
+
+static struct piece_info current_piece;
 
 static void add_current_piece()
 {
@@ -354,7 +372,6 @@ static void new_game()
 {
   memset(board, 0, sizeof(board));
   current_piece = random_piece();
-  next_piece = random_piece();
   score = 0;
   level = 1;
   add_current_piece();
@@ -389,8 +406,7 @@ static void handle_piece_bottom()
 
   level = 1 + score / 700;
 
-  current_piece = next_piece;
-  next_piece = random_piece();
+  current_piece = random_piece();
 
   if (check_overlap()) {
     new_game();
@@ -452,20 +468,20 @@ static void rotate()
 
 static void welcome()
 {
-  printf("\e[2J"
-         "\e[2;8H" "Welcome to Braille Tetris (BETRIS)"
-         "\e[4;1H" "Instructions:"
-         "\e[5;1H" "1. The pieces \"fall\" from right to left."
-         "\e[6;1H" "2. The display shows a 4-dot high section of the board."
-         "\e[7;1H" "3. Use the following keys to control the pieces:"
-         "\e[8;4H"    "- 'h' or LEFT ARROW: Move piece down"
-         "\e[9;4H"    "- 'k' or UP ARROW: Move piece left"
-         "\e[10;4H"   "- 'j' or DOWN ARROW: Move piece right"
-         "\e[11;4H"   "- RIGHT ARROW or ENTER: Rotate piece"
-         "\e[12;4H"   "- SPACE: Drop piece to the bottom"
-         "\e[13;4H"   "- 'q' or ESC: Quit the game"
-         "\e[15;1H" "Press any key to start the game..."
-         "\e[15;1H"
+  fputs("\e[2J"
+        "\e[2;8H" "Welcome to Braille Tetris (BETRIS)"
+        "\e[4;1H" "Instructions:"
+        "\e[5;1H" "1. The pieces \"fall\" from right to left."
+        "\e[6;1H" "2. The display shows a 4-dot high section of the board."
+        "\e[7;1H" "3. Use the following keys to control the pieces:"
+        "\e[9;4H"    "- UP ARROW: Move piece left"
+        "\e[10;4H"   "- DOWN ARROW: Move piece right"
+        "\e[11;4H"   "- RIGHT ARROW or ENTER: Rotate piece"
+        "\e[8;4H"    "- LEFT ARROW: Move piece down"
+        "\e[12;4H"   "- SPACE: Drop piece to the bottom"
+        "\e[13;4H"   "- 'q' or ESC: Quit the game"
+        "\e[15;1H" "Press any key to start the game..."
+        "\e[15;1H", stdout
   );
   fflush(stdout);
   read_key();
@@ -473,6 +489,7 @@ static void welcome()
 
 int main()
 {
+  srand((unsigned)time(NULL));
   enable_raw_mode();
   welcome();
   initialize_timer();
