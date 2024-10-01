@@ -469,19 +469,23 @@ static void rotate()
 static void welcome()
 {
   fputs("\e[2J"
-        "\e[2;8H" "Welcome to Braille Tetris (BETRIS)"
-        "\e[4;1H" "Instructions:"
-        "\e[5;1H" "1. The pieces \"fall\" from right to left."
-        "\e[6;1H" "2. The display shows a 4-dot high section of the board."
-        "\e[7;1H" "3. Use the following keys to control the pieces:"
-        "\e[9;4H"    "- UP ARROW: Move piece left"
-        "\e[10;4H"   "- DOWN ARROW: Move piece right"
-        "\e[11;4H"   "- RIGHT ARROW or ENTER: Rotate piece"
-        "\e[8;4H"    "- LEFT ARROW: Move piece down"
-        "\e[12;4H"   "- SPACE: Drop piece to the bottom"
-        "\e[13;4H"   "- 'q' or ESC: Quit the game"
-        "\e[15;1H" "Press any key to start the game..."
-        "\e[15;1H", stdout
+        "\e[2;8H" "Welcome to BETRIS"
+        "\e[4;1H" "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
+        "\e[5;1H" "Tetriminos, fall from the right to the left of the screen. The player's goal"
+        "\e[6;1H" "is to move and rotate these Tetriminos to create complete vertical lines, which"
+        "\e[7;1H" "then disappear, making space for new Tetriminos. The game ends when there's no"
+        "\e[8;1H" "more space for new Tetriminos. The vertical size of the playfield is 10, while"
+        "\e[9;1H" "the braille display will only show a 4-dot high section of the board."
+        "\e[11;1H" "Instructions:"
+        "\e[12;1H" "1. Use the following keys to control the pieces:"
+        "\e[13;4H"    "- UP ARROW: Move piece up"
+        "\e[14;4H"    "- DOWN ARROW: Move piece down"
+        "\e[15;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
+        "\e[16;4H"    "- LEFT ARROW: Move piece left"
+        "\e[17;4H"    "- SPACE: Drop piece to the bottom"
+        "\e[18;4H"    "- 'q' or ESC: Quit the game"
+        "\e[20;1H" "Press any key to start the game..."
+        "\e[20;1H", stdout
   );
   fflush(stdout);
   read_key();
