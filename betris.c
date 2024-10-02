@@ -8,8 +8,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 enum piece { I, O, L, J, T, S, Z };
@@ -31,7 +33,7 @@ static inline bool test_piece(enum piece kind, unsigned char rotation, short y, 
 struct piece_info
 {
   enum piece kind:8;
-  unsigned char rotation;
+  unsigned rotation:8;
   signed char x, y;
 };
 
@@ -154,44 +156,6 @@ enum {
   TICK
 };
 
-enum step_name { S_start, S_has_char };
-
-struct state_info
-{
-  enum step_name step;
-  char c;
-} state = { S_start };
-
-static int read_k()
-{
-  int nread;
-  switch (state.step) {
-  case S_start:
-    do {
-      nread = read(STDIN_FILENO, &state.c, 1);
-      if (nread == -1) {
-	if (errno == EINTR && is_timer()) return TICK;
-	perror("read");
-	exit(EXIT_FAILURE);
-      }
-    } while (nread == 0);
-    state.step = S_has_char;
-  case S_has_char:
-    switch (state.c) {
-    case CTRL('J'):
-      state.step = S_start;
-      return CTRL('M');
-    case CTRL('V'):
-      state.step = S_start;
-      return PAGE_DOWN;
-    default:
-      state.step = S_start;
-      return state.c;
-    }
-  }
-}
-
-    
 static int read_key()
 {
   int nread;
@@ -347,9 +311,9 @@ static short level = 1;
 
 static void draw_screen()
 {
-  unsigned char line[11] = {0};
-  short offset = current_piece.x > 6? 6: current_piece.x;
-  for (short y = 0; y != HEIGHT; y++)
+  unsigned char line[(HEIGHT - 2) / 2] = {0};
+  const short offset = current_piece.x > 6? 6: current_piece.x;
+  for (short y = 2; y != HEIGHT; y++)
     for (short x = 0; x != 4; x++)
       if (test_board(y, x + offset))
         line[(HEIGHT - 1 - y) / 2] |= brl[y % 2][x];
@@ -364,7 +328,7 @@ static void draw_screen()
 
   write(STDOUT_FILENO, "\e[2J\e[H", 7);
   write(STDOUT_FILENO, utf8, sizeof(utf8));
-  printf("  %d points, level %d\e[1;14H", score, level);
+  printf("  %d points, level %d\e[1;13H", score, level);
   fflush(stdout);
 }
 
@@ -437,7 +401,7 @@ static void move_down()
 { if (do_move_down()) handle_piece_bottom(); }
 
 static void move_bottom()
-{ while (!do_move_down()); handle_piece_bottom(); }
+{ while (!do_move_down()) continue; handle_piece_bottom(); }
 
 static void move_left()
 {
@@ -492,9 +456,11 @@ static void welcome()
   read_key();
 }
 
+static inline void seed_rng() { srand((unsigned)time(NULL)); }
+
 int main()
 {
-  srand((unsigned)time(NULL));
+  seed_rng();
   enable_raw_mode();
   welcome();
   initialize_timer();
@@ -527,7 +493,7 @@ int main()
     case 'q':
     case CTRL('Q'):
     case CTRL('['):
-      write(STDOUT_FILENO, "\e[2J\e[5;5HThanks for playing betris\r\n\r\n", 39);
+      fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout);
       exit(EXIT_SUCCESS);
     }
     draw_screen();
