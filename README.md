@@ -15,12 +15,3 @@ There is no need to interact with a screen reader.
 Moving the current tetrimino around will also move the
 currently visible area.  The tetrimino is always aligned
 at the top of the display, except for the last column.
-
-## Demo
-
-This game can be played online.
-
-```console
-$ ssh betris@blind.guru
-```
-
