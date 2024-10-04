@@ -15,51 +15,83 @@
 #include <unistd.h>
 
 enum piece { I, O, L, J, T, S, Z };
-enum { PIECES = Z + 1, ROTATIONS = 4, WIDTH = 10, HEIGHT = 22 };
-
-static const unsigned short tetromino[PIECES][ROTATIONS] =
-{ [I] = { 0x8888, 0xF000, 0x8888, 0xF000 }
-, [O] = { 0xCC00, 0xCC00, 0xCC00, 0xCC00 }
-, [L] = { 0xC880, 0xE200, 0x44C0, 0x8E00 }
-, [J] = { 0xC440, 0x2E00, 0x88C0, 0xE800 }
-, [T] = { 0x4E00, 0x8C80, 0xE400, 0x4C40 }
-, [S] = { 0x4C80, 0xC600, 0x4C80, 0xC600 }
-, [Z] = { 0x8C40, 0x6C00, 0x8C40, 0x6C00 }
+enum orientation { DOWN, LEFT, UP, RIGHT };
+enum {
+  PIECES = Z + 1,
+  ROTATIONS = RIGHT + 1,
+  SPAWN = DOWN,
+  SPAWN_X = 4,
+  SPAWN_Y = 2,
+  BLOCKS_PER_PIECE = 4,
+  WIDTH = 10,
+  HEIGHT = 22,
+  BRAILLE_CELL_WIDTH = 2,
+  BRAILLE_CELL_HEIGHT = 4
 };
 
-static inline bool test_piece(enum piece kind, unsigned char rotation, short y, short x)
-{ return tetromino[kind][rotation] & (0x8000 >> (y*4 + x)); }
+struct coord { signed char x, y; };
+
+static const struct coord delta[PIECES][ROTATIONS][BLOCKS_PER_PIECE] =
+{ [T] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  1,  0 }, {  0,  1 } }
+        , [LEFT]  = { {  0, -1 }, { -1,  0 }, {  0,  0 }, {  0,  1 } }
+        , [UP]    = { { -1,  0 }, {  0,  0 }, {  1,  0 }, {  0, -1 } }
+        , [RIGHT] = { {  0, -1 }, {  0,  0 }, {  1,  0 }, {  0,  1 } } }
+, [J] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  1,  0 }, {  1,  1 } }
+        , [LEFT]  = { {  0, -1 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
+        , [UP]    = { { -1, -1 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
+        , [RIGHT] = { {  0, -1 }, {  1, -1 }, {  0,  0 }, {  0,  1 } } }
+, [Z] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  0,  1 }, {  1,  1 } }
+        , [LEFT]  = { {  1, -1 }, {  0,  0 }, {  1,  0 }, {  0,  1 } }
+        , [UP]    = { { -1,  0 }, {  0,  0 }, {  0,  1 }, {  1,  1 } }
+        , [RIGHT] = { {  1, -1 }, {  0,  0 }, {  1,  0 }, {  0,  1 } } }
+, [O] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
+        , [LEFT]  = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
+        , [UP]    = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
+        , [RIGHT] = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } } }
+, [S] = { [SPAWN] = { {  0,  0 }, {  1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [LEFT]  = { {  0, -1 }, {  0,  0 }, {  1,  0 }, {  1,  1 } }
+        , [UP]    = { {  0,  0 }, {  1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [RIGHT] = { {  0, -1 }, {  0,  0 }, {  1,  0 }, {  1,  1 } } }
+, [L] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  1,  0 }, { -1,  1 } }
+        , [LEFT]  = { { -1, -1 }, {  0, -1 }, {  0,  0 }, {  0,  1 } }
+        , [UP]    = { {  1, -1 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
+        , [RIGHT] = { {  0, -1 }, {  0,  0 }, {  0,  1 }, {  1,  1 } } }
+, [I] = { [SPAWN] = { { -2,  0 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
+        , [LEFT]  = { {  0, -2 }, {  0, -1 }, {  0,  0 }, {  0,  1 } }
+        , [UP]    = { { -2,  0 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
+        , [RIGHT] = { {  0, -2 }, {  0, -1 }, {  0,  0 }, {  0,  1 } } }
+};
 
 struct piece_info
 {
   enum piece kind:8;
-  unsigned rotation:8;
+  enum orientation rotation:8;
   signed char x, y;
 };
 
-static unsigned short board[HEIGHT];
+static unsigned short playfield[HEIGHT];
 
-static inline bool test_board(short y, short x)
-{ return board[y] & (1 << x); }
+static inline bool test_playfield(struct coord pos)
+{ return playfield[pos.y] & (1 << pos.x); }
 
-static inline bool set_board(short y, short x)
-{ return board[y] |= (1 << x); }
+static inline bool set_playfield(struct coord pos)
+{ return playfield[pos.y] |= (1 << pos.x); }
 
-static inline bool clear_board(short y, short x)
-{ return board[y] &= ~(1 << x); }
+static inline bool clear_playfield(struct coord pos)
+{ return playfield[pos.y] &= ~(1 << pos.x); }
 
 static struct piece_info bag[PIECES * 4];
-static short bag_count = 0;
+static size_t bag_count = 0;
 
 static struct piece_info random_piece()
 {
   if (!bag_count) {
     bag_count = sizeof(bag) / sizeof(*bag);
-    for (short i = 0; i != bag_count; i++)
-      bag[i] = (struct piece_info){ i % PIECES, rand() % ROTATIONS, 4, 3 };
+    for (size_t i = 0; i != bag_count; i++)
+      bag[i] = (struct piece_info){ i % PIECES, SPAWN, SPAWN_X, SPAWN_Y };
 
-    for (short i = bag_count - 1; i > 0; i--) {
-      const short j = rand() % (i + 1);
+    for (size_t i = bag_count - 1; i > 0; i--) {
+      const size_t j = rand() % (i + 1);
       struct piece_info tmp = bag[i];
       bag[i] = bag[j];
       bag[j] = tmp;
@@ -69,38 +101,58 @@ static struct piece_info random_piece()
   return bag[--bag_count];
 }
 
-static struct piece_info current_piece;
+static struct piece_info active_piece;
 
-static void add_current_piece()
+static struct coord active_piece_block(size_t i)
 {
-  for (short y = 0; y != 4; y++)
-    for (short x = 0; x != 4; x++)
-      if (test_piece(current_piece.kind, current_piece.rotation, y, x))
-        set_board(current_piece.y - y, current_piece.x + x);
+  assert(i < BLOCKS_PER_PIECE);
+  const struct coord * const offset =
+    &delta[active_piece.kind][active_piece.rotation][i];
+
+  return (struct coord){
+    .x = active_piece.x - offset->x, .y = active_piece.y - offset->y
+  };
 }
 
-static void remove_current_piece()
+static void add_active_piece()
 {
-  for (short y = 0; y != 4; y++)
-    for (short x = 0; x != 4; x++)
-      if (test_piece(current_piece.kind, current_piece.rotation, y, x)) {
-        assert(test_board(current_piece.y - y, current_piece.x + x));
-        clear_board(current_piece.y - y, current_piece.x + x);
-      }
+  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++) {
+    struct coord pos = active_piece_block(i);
+    assert(!test_playfield(pos));
+    set_playfield(pos);
+  }
+}
+
+static void remove_active_piece()
+{
+  for (size_t i = 0; i != 4; i++) {
+    struct coord pos = active_piece_block(i);
+    assert(test_playfield(pos));
+    clear_playfield(pos);
+  }
 }
 
 static bool check_overlap()
 {
-  for (short y = 0; y != 4; y++)
-    for (short x = 0; x != 4; x++)
-      if (test_piece(current_piece.kind, current_piece.rotation, y, x)) {
-        const short gy = current_piece.y - y, gx = current_piece.x + x;
-
-        if (gy >= HEIGHT || gy < 0 || gx >= WIDTH || gx < 0) return true;
-        if (test_board(gy, gx)) return true;
-      }
+  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++) {
+    const struct coord pos = active_piece_block(i);
+    if (pos.x < 0 || pos.x >= WIDTH) return true;
+    if (pos.y < 0 || pos.y >= HEIGHT) return true;
+    if (test_playfield(pos)) return true;
+  }
 
   return false;
+}
+
+static signed char get_active_piece_x_bounds()
+{
+  signed char result = active_piece.x;
+  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++) {
+    const signed char x = active_piece_block(i).x;
+    if (x < result) result = x;
+  }
+
+  return result;
 }
 
 volatile bool alarmed;
@@ -127,14 +179,11 @@ static void initialize_timer()
   }
 }
 
-static void set_timer_interval(int usec)
+static void set_timer_interval(unsigned int usec)
 {
-  struct timeval interval = { 0, usec };
-  while (interval.tv_usec >= 1000000) {
-    interval.tv_sec += 1;
-    interval.tv_usec -= 1000000;
-  }
-  struct itimerval timer = {interval, interval};
+  assert(usec > 0);
+  const struct timeval interval = { usec / 1000000, usec % 1000000 };
+  const struct itimerval timer = {interval, interval};
   if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
     perror("setitimer");
     exit(EXIT_FAILURE);
@@ -148,7 +197,8 @@ enum {
   ARROW_RIGHT,
   ARROW_UP,
   ARROW_DOWN,
-  DEL_KEY,
+  INSERT_KEY,
+  DELETE_KEY,
   HOME_KEY,
   END_KEY,
   PAGE_UP,
@@ -156,97 +206,70 @@ enum {
   TICK
 };
 
-static int read_key()
+static int read_event()
 {
-  int nread;
-  char c, seq[3];
-  do {
-    nread = read(STDIN_FILENO, &c, 1);
-    if (nread == -1) {
-      if (errno == EINTR && is_timer()) return TICK;
-      perror("read");
-      exit(EXIT_FAILURE);
-    }
-  } while (!nread);
+  static enum { START, ESC_SEQ = '\e', BRACKET_SEQ = '[' } state = START;
+  static unsigned short arg = 0;
 
   while (1) {
-    switch (c) {
-      case CTRL('J'): /* newline */
-        return CTRL('M');
-      case CTRL('V'):
-        return PAGE_DOWN;
-      case '\e': /* escape sequence */
-        nread = read(STDIN_FILENO, seq, 1);
-        if (nread == -1) {
-          if (errno == EINTR && is_timer()) return TICK;
-          perror("read");
-          exit(EXIT_FAILURE);
-        }
-        /* If this is just an ESC, we'll timeout here. */
-        if (nread == 0) return CTRL('[');
+    char ch;
+    const ssize_t n = read(STDIN_FILENO, &ch, sizeof(ch));
 
-        if (seq[0] == '[') {
-          if (read(STDIN_FILENO, seq + 1, 1) == 0)
-            return CTRL('[');
-          if (seq[1] >= '0' && seq[1] <= '9') {
-            /* Extended escape, read additional byte. */
-            if (read(STDIN_FILENO, seq + 2, 1) == 0)
-              return CTRL('[');
-            if (seq[2] == '~') {
-              switch (seq[1]) {
-                case '1':
-                  return HOME_KEY;
-                case '3':
-                  return DEL_KEY;
-                case '4':
-                  return END_KEY;
-                case '5':
-                  return PAGE_UP;
-                case '6':
-                  return PAGE_DOWN;
-              }
-            }
-          } else {
-            /* Arrow Keys
-             *
-             *   KEY   CODE     FN  SHIFT OPTION
-             * ───── ────── ────── ────── ──────
-             *    UP    ←[A   ←[5~    ←[A    ←[A
-             *  DOWN    ←[B   ←[6~    ←[B    ←[B
-             * RIGHT    ←[C   ←[4~ ←[1;2C    ←[f
-             *  LEFT    ←[D   ←[1~ ←[1;2C    ←[b
-             */
-            switch (seq[1]) {
-              case 'A':
-                return ARROW_UP;
-              case 'B':
-                return ARROW_DOWN;
-              case 'C':
-                return ARROW_RIGHT;
-              case 'D':
-                return ARROW_LEFT;
-              case 'H':
-                return HOME_KEY;
-              case 'F':
-                return END_KEY;
-            }
-          }
-        } else if (seq[0] == 'v') {
-          return PAGE_UP;
-        } else if (seq[0] == 'O') {
-          if (read(STDIN_FILENO, seq + 1, 1) == 0)
-            return CTRL('[');
-          /* ESC O sequences. */
-          switch (seq[1]) {
-            case 'H':
-              return HOME_KEY;
-            case 'F':
-              return END_KEY;
-          }
+    if (n == -1) {
+      if (errno == EINTR) {
+        if (is_timer()) return TICK;
+        continue;
+      }
+      perror("read");
+      exit(EXIT_FAILURE); // Return -1 on other read errors
+    } else if (n == 0) {
+      if (state == START) continue;
+      state = START;
+      return '\e';
+    }
+
+    switch (state) {
+    case START:
+      if (ch == '\e') {
+        state = ESC_SEQ;
+      } else {
+        return ch; // Regular character read
+      }
+      break;
+
+    case ESC_SEQ:
+      if (ch == '[') {
+        state = BRACKET_SEQ;
+        arg = 0;
+      } else {
+        state = START;
+        return '\e'; // Return ESC if not following with '['
+      }
+      break;
+
+    case BRACKET_SEQ:
+      if (ch >= '0' && ch <= '9') {
+        arg = (arg * 10) + (ch - '0');
+        break;
+      }
+      state = START;
+      switch (ch) {
+      case 'A': return ARROW_UP;
+      case 'B': return ARROW_DOWN;
+      case 'C': return ARROW_RIGHT;
+      case 'D': return ARROW_LEFT;
+      case '~':
+        switch (arg) {
+        case 1: return HOME_KEY;
+        case 2: return INSERT_KEY;
+        case 3: return DELETE_KEY;
+        case 4: return END_KEY;
+        case 5: return PAGE_UP;
+        case 6: return PAGE_DOWN;
         }
         break;
-      default:
-        return c;
+      }
+      break;
     }
   }
 }
@@ -302,49 +325,60 @@ enum dots
   dot5 = 0b00010000, dot6 = 0b00100000, dot7 = 0b01000000, dot8 = 0b10000000
 };
 
-static const unsigned char brl[2][4] = {
+static const unsigned char brl[BRAILLE_CELL_WIDTH][BRAILLE_CELL_HEIGHT] = {
   { dot4, dot5, dot6, dot8 }, { dot1, dot2, dot3, dot7 }
 };
 
 static int score = 0;
 static short level = 1;
 
+static inline signed char min(signed char a, signed char b)
+{ return a < b ? a : b; }
+
 static void draw_screen()
 {
   unsigned char line[(HEIGHT - 2) / 2] = {0};
-  const short offset = current_piece.x > 6? 6: current_piece.x;
-  for (short y = 2; y != HEIGHT; y++)
-    for (short x = 0; x != 4; x++)
-      if (test_board(y, x + offset))
-        line[(HEIGHT - 1 - y) / 2] |= brl[y % 2][x];
+  const signed char offset = min(get_active_piece_x_bounds(),  6);
+  for (signed char y = 2; y != HEIGHT; y++)
+    for (signed char x = 0; x != BRAILLE_CELL_HEIGHT; x++)
+      if (test_playfield((struct coord){ .x = x + offset, .y = y }))
+        line[(HEIGHT - 1 - y) / 2] |= brl[y % BRAILLE_CELL_WIDTH][x];
 
   unsigned char utf8[sizeof(line) * 3];
-  for (short i = 0; i != sizeof(line); i++) {
-    unsigned char *p = &utf8[i * (sizeof(utf8) / sizeof(line))];
+  unsigned char *p = &utf8[0];
+  for (size_t i = 0; i != sizeof(line); i++) {
     *p++ = 0xE2;
     *p++ = 0xA0 | (line[i] >> 6);
     *p++ = 0x80 | (line[i] & 0x3F);
   }
 
-  write(STDOUT_FILENO, "\e[2J\e[H", 7);
+  write(STDOUT_FILENO, "\e[H", 3);
   write(STDOUT_FILENO, utf8, sizeof(utf8));
   printf("  %d points, level %d\e[1;13H", score, level);
   fflush(stdout);
 }
 
-static void new_game()
+static const char CLEAR_SCREEN[] = "\e[2J";
+
+static void clear_screen()
 {
-  memset(board, 0, sizeof(board));
-  current_piece = random_piece();
-  score = 0;
-  level = 1;
-  add_current_piece();
+  write(STDOUT_FILENO, CLEAR_SCREEN, sizeof(CLEAR_SCREEN) - 1);
+  fflush(stdout);
 }
 
-static inline bool is_complete_line(short y)
+static void new_game()
+{
+  memset(playfield, 0, sizeof(playfield));
+  active_piece = random_piece();
+  score = 0;
+  level = 1;
+  add_active_piece();
+}
+
+static inline bool is_complete_line(size_t y)
 {
   const unsigned short mask = (1 << WIDTH) - 1;
-  return (board[y] ^ mask) == 0;
+  return (playfield[y] ^ mask) == 0;
 }
 
 static const int points_per_line[] = { 1, 40, 100, 300, 1200 };
@@ -353,10 +387,10 @@ static int eliminate_lines()
 {
   int lines = 0;
 
-  for (short y = 0; y < HEIGHT; y++) {
+  for (size_t y = 0; y < HEIGHT; y++) {
     if (!is_complete_line(y)) continue;
 
-    for (short h = y; h > 2; h--) board[h] = board[h - 1];
+    for (short h = y; h > 2; h--) playfield[h] = playfield[h - 1];
 
     lines++;
   }
@@ -370,27 +404,27 @@ static void handle_piece_bottom()
 
   level = 1 + score / 700;
 
-  current_piece = random_piece();
+  active_piece = random_piece();
 
   if (check_overlap()) {
     new_game();
     return;
   }
 
-  add_current_piece();
+  add_active_piece();
 }
 
 static bool do_move_down()
 {
   bool bottom = false;
 
-  remove_current_piece();
-  current_piece.y++;
+  remove_active_piece();
+  active_piece.y++;
   if (check_overlap()) {
     bottom = true;
-    current_piece.y--;
+    active_piece.y--;
   }
-  add_current_piece();
+  add_active_piece();
 
   /* delay = 800 * pow(0.9, level); */
 
@@ -400,47 +434,47 @@ static bool do_move_down()
 static void move_down()
 { if (do_move_down()) handle_piece_bottom(); }
 
-static void move_bottom()
+static void hard_drop()
 { while (!do_move_down()) continue; handle_piece_bottom(); }
 
 static void move_left()
 {
-  remove_current_piece();
-  current_piece.x--;
+  remove_active_piece();
+  active_piece.x--;
   if (check_overlap())
-    current_piece.x++;
-  add_current_piece();
+    active_piece.x++;
+  add_active_piece();
 }
 
 static void move_right()
 {
-  remove_current_piece();
-  current_piece.x++;
+  remove_active_piece();
+  active_piece.x++;
   if (check_overlap())
-    current_piece.x--;
-  add_current_piece();
+    active_piece.x--;
+  add_active_piece();
 }
 
 static void rotate()
 {
-  const int rotation = current_piece.rotation;
-  remove_current_piece();
-  current_piece.rotation = (rotation + 1) % 4;
-  if (check_overlap()) current_piece.rotation = rotation;
-  add_current_piece();
+  const enum orientation rotation = active_piece.rotation;
+  remove_active_piece();
+  active_piece.rotation = (rotation + 1) % ROTATIONS;
+  if (check_overlap()) active_piece.rotation = rotation;
+  add_active_piece();
 }
 
 static void welcome()
 {
-  fputs("\e[2J"
-        "\e[2;8H" "Welcome to BETRIS"
+  clear_screen();
+  fputs("\e[2;8H" "Welcome to BETRIS"
         "\e[4;1H" "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
         "\e[5;1H" "Tetrominos, fall from the right to the left of the screen. Tetrominos are"
         "\e[6;1H" "composed of 4 connected dots. The player's goal is to move and rotate"
         "\e[7;1H" "these Tetrominos to create complete vertical lines, which then disappear,"
         "\e[8;1H" "making space for new Tetrominos. The game ends when there's no more space"
         "\e[9;1H" "for new Tetrominos. The vertical size of the playfield is 10, while the"
-        "\e[10;1H" "braille display will only show a 4-dot high section of the board."
+        "\e[10;1H" "braille display will only show a 4-dot high section of the playfield."
         "\e[12;1H" "Instructions:"
         "\e[13;1H" "1. Use the following keys to control the pieces:"
         "\e[14;4H"    "- UP ARROW: Move piece up"
@@ -453,7 +487,7 @@ static void welcome()
         "\e[21;1H", stdout
   );
   fflush(stdout);
-  read_key();
+  while (read_event() == TICK) continue;
 }
 
 static inline void seed_rng() { srand((unsigned)time(NULL)); }
@@ -466,10 +500,10 @@ int main()
   initialize_timer();
   new_game();
   draw_screen();
-  set_timer_interval(800000 * pow(0.9, level));
+  set_timer_interval(1000000 * pow(0.9, level));
 
   for (;;) {
-    switch (read_key()) {
+    switch (read_event()) {
     case 'h':
     case ARROW_LEFT:
     case TICK:
@@ -488,13 +522,15 @@ int main()
       rotate();
       break;
     case ' ':
-      move_bottom();
+      hard_drop();
       break;
     case 'q':
     case CTRL('Q'):
     case CTRL('['):
       fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout);
       exit(EXIT_SUCCESS);
+    default:
+      continue;
     }
     draw_screen();
   }
