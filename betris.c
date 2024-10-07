@@ -482,9 +482,10 @@ static void welcome()
         "\e[16;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
         "\e[17;4H"    "- LEFT ARROW: Move piece left"
         "\e[18;4H"    "- SPACE: Drop piece to the bottom"
-        "\e[19;4H"    "- 'q' or ESC: Quit the game"
-        "\e[21;1H" "Press any key to start the game..."
-        "\e[21;1H", stdout
+        "\e[19;4H"    "- 'p': Pause the game"
+        "\e[20;4H"    "- 'q' or ESC: Quit the game"
+        "\e[22;1H" "Press any key to start the game..."
+        "\e[22;1H", stdout
   );
   fflush(stdout);
   while (read_event() == TICK) continue;
@@ -523,6 +524,9 @@ int main()
       break;
     case ' ':
       hard_drop();
+      break;
+    case 'p':
+      while (read_event() != 'p') continue;
       break;
     case 'q':
     case CTRL('Q'):
