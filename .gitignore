@@ -1,3 +1,14 @@
-.stack-work/
-betris.cabal
-*~
+aarch64-linux-cosmo/
+LICENSE.gpl2
+LICENSE.gpl3
+LICENSE.lgpl2
+LICENSE.lgpl3
+betris.exe
+betris.exe.aarch64.elf
+betris.exe.com.dbg
+bin/
+include/
+lib/
+libexec/
+x86_64-linux-cosmo/
+cosmocc.zip

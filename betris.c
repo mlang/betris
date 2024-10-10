@@ -1,4 +1,5 @@
 /*  A single-file, libc-only implementation of Tetris for braille displays.  */
+/* ------------------------------------------------------------------------- */
 /* Meant to be built with Cosmopolitan Libc for a cross-platform fat binary. */
 
 #include <assert.h>
@@ -18,7 +19,7 @@ enum piece { I, O, L, J, T, S, Z };
 enum orientation { DOWN, LEFT, UP, RIGHT };
 enum {
   PIECES = Z + 1,
-  ROTATIONS = RIGHT + 1,
+  MAX_ROTATIONS = RIGHT + 1,
   SPAWN = DOWN,
   SPAWN_X = 4,
   SPAWN_Y = 2,
@@ -31,43 +32,102 @@ enum {
 
 struct coord { signed char x, y; };
 
-static const struct coord delta[PIECES][ROTATIONS][BLOCKS_PER_PIECE] =
-{ [T] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  1,  0 }, {  0,  1 } }
-        , [LEFT]  = { {  0, -1 }, { -1,  0 }, {  0,  0 }, {  0,  1 } }
-        , [UP]    = { { -1,  0 }, {  0,  0 }, {  1,  0 }, {  0, -1 } }
-        , [RIGHT] = { {  0, -1 }, {  0,  0 }, {  1,  0 }, {  0,  1 } } }
-, [J] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  1,  0 }, {  1,  1 } }
-        , [LEFT]  = { {  0, -1 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
-        , [UP]    = { { -1, -1 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
-        , [RIGHT] = { {  0, -1 }, {  1, -1 }, {  0,  0 }, {  0,  1 } } }
-, [Z] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  0,  1 }, {  1,  1 } }
-        , [LEFT]  = { {  1, -1 }, {  0,  0 }, {  1,  0 }, {  0,  1 } }
-        , [UP]    = { { -1,  0 }, {  0,  0 }, {  0,  1 }, {  1,  1 } }
-        , [RIGHT] = { {  1, -1 }, {  0,  0 }, {  1,  0 }, {  0,  1 } } }
-, [O] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
-        , [LEFT]  = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
-        , [UP]    = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } }
-        , [RIGHT] = { { -1,  0 }, {  0,  0 }, { -1,  1 }, {  0,  1 } } }
-, [S] = { [SPAWN] = { {  0,  0 }, {  1,  0 }, { -1,  1 }, {  0,  1 } }
-        , [LEFT]  = { {  0, -1 }, {  0,  0 }, {  1,  0 }, {  1,  1 } }
-        , [UP]    = { {  0,  0 }, {  1,  0 }, { -1,  1 }, {  0,  1 } }
-        , [RIGHT] = { {  0, -1 }, {  0,  0 }, {  1,  0 }, {  1,  1 } } }
-, [L] = { [SPAWN] = { { -1,  0 }, {  0,  0 }, {  1,  0 }, { -1,  1 } }
-        , [LEFT]  = { { -1, -1 }, {  0, -1 }, {  0,  0 }, {  0,  1 } }
-        , [UP]    = { {  1, -1 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
-        , [RIGHT] = { {  0, -1 }, {  0,  0 }, {  0,  1 }, {  1,  1 } } }
-, [I] = { [SPAWN] = { { -2,  0 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
-        , [LEFT]  = { {  0, -2 }, {  0, -1 }, {  0,  0 }, {  0,  1 } }
-        , [UP]    = { { -2,  0 }, { -1,  0 }, {  0,  0 }, {  1,  0 } }
-        , [RIGHT] = { {  0, -2 }, {  0, -1 }, {  0,  0 }, {  0,  1 } } }
+static const struct coord delta[PIECES][MAX_ROTATIONS][BLOCKS_PER_PIECE - 1] =
+{ [T] = { [SPAWN] = { { -1,  0 }, {  1,  0 }, {  0,  1 } }
+        , [LEFT]  = { {  0, -1 }, { -1,  0 }, {  0,  1 } }
+        , [UP]    = { { -1,  0 }, {  1,  0 }, {  0, -1 } }
+        , [RIGHT] = { {  0, -1 }, {  1,  0 }, {  0,  1 } } }
+, [J] = { [SPAWN] = { { -1,  0 }, {  1,  0 }, {  1,  1 } }
+        , [LEFT]  = { {  0, -1 }, { -1,  1 }, {  0,  1 } }
+        , [UP]    = { { -1, -1 }, { -1,  0 }, {  1,  0 } }
+        , [RIGHT] = { {  0, -1 }, {  1, -1 }, {  0,  1 } } }
+, [Z] = { [SPAWN] = { { -1,  0 }, {  0,  1 }, {  1,  1 } }
+        , [LEFT]  = { {  1, -1 }, {  1,  0 }, {  0,  1 } }
+        , [UP]    = { { -1,  0 }, {  0,  1 }, {  1,  1 } }
+        , [RIGHT] = { {  1, -1 }, {  1,  0 }, {  0,  1 } } }
+, [O] = { [SPAWN] = { { -1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [LEFT]  = { { -1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [UP]    = { { -1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [RIGHT] = { { -1,  0 }, { -1,  1 }, {  0,  1 } } }
+, [S] = { [SPAWN] = { {  1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [LEFT]  = { {  0, -1 }, {  1,  0 }, {  1,  1 } }
+        , [UP]    = { {  1,  0 }, { -1,  1 }, {  0,  1 } }
+        , [RIGHT] = { {  0, -1 }, {  1,  0 }, {  1,  1 } } }
+, [L] = { [SPAWN] = { { -1,  0 }, {  1,  0 }, { -1,  1 } }
+        , [LEFT]  = { { -1, -1 }, {  0, -1 }, {  0,  1 } }
+        , [UP]    = { {  1, -1 }, { -1,  0 }, {  1,  0 } }
+        , [RIGHT] = { {  0, -1 }, {  0,  1 }, {  1,  1 } } }
+, [I] = { [SPAWN] = { { -2,  0 }, { -1,  0 }, {  1,  0 } }
+        , [LEFT]  = { {  0, -2 }, {  0, -1 }, {  0,  1 } }
+        , [UP]    = { { -2,  0 }, { -1,  0 }, {  1,  0 } }
+        , [RIGHT] = { {  0, -2 }, {  0, -1 }, {  0,  1 } } }
 };
 
 struct piece_info
 {
   enum piece kind:8;
   enum orientation rotation:8;
-  signed char x, y;
+  struct coord pos;
 };
+
+/* --- Bag of pieces --- */
+
+static struct piece_info bag[PIECES];
+static size_t bag_count = 0;
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
+
+static inline void fill_bag()
+{
+  while (bag_count != ARRAY_SIZE(bag)) {
+    bag[bag_count] = (struct piece_info) {
+      bag_count % PIECES, SPAWN, { SPAWN_X, SPAWN_Y }
+    };
+    bag_count += 1;
+  }
+}
+
+static inline void shuffle_bag()
+{
+  for (size_t i = bag_count - 1; i > 0; i--) {
+    const size_t j = rand() % (i + 1);
+
+    if (i != j) {
+      const struct piece_info tmp = bag[i];
+      bag[i] = bag[j];
+      bag[j] = tmp;
+    }      
+  }
+}
+
+static struct piece_info random_piece()
+{
+  if (!bag_count) {
+    fill_bag();
+    shuffle_bag();
+  }
+
+  return bag[--bag_count];
+}
+
+static struct piece_info active_piece;
+
+static struct coord active_piece_block(size_t block)
+{
+  assert(block < BLOCKS_PER_PIECE);
+
+  if (block == 0) return active_piece.pos;
+
+  block -= 1;
+
+  const struct coord offset =
+    delta[active_piece.kind][active_piece.rotation][block];
+
+  return (struct coord){
+    .x = active_piece.pos.x - offset.x,
+    .y = active_piece.pos.y - offset.y
+  };
+}
 
 static unsigned short playfield[HEIGHT];
 
@@ -80,56 +140,16 @@ static inline bool set_playfield(struct coord pos)
 static inline bool clear_playfield(struct coord pos)
 { return playfield[pos.y] &= ~(1 << pos.x); }
 
-static struct piece_info bag[PIECES * 4];
-static size_t bag_count = 0;
-
-static struct piece_info random_piece()
-{
-  if (!bag_count) {
-    bag_count = sizeof(bag) / sizeof(*bag);
-    for (size_t i = 0; i != bag_count; i++)
-      bag[i] = (struct piece_info){ i % PIECES, SPAWN, SPAWN_X, SPAWN_Y };
-
-    for (size_t i = bag_count - 1; i > 0; i--) {
-      const size_t j = rand() % (i + 1);
-      struct piece_info tmp = bag[i];
-      bag[i] = bag[j];
-      bag[j] = tmp;
-    }
-  }
-
-  return bag[--bag_count];
-}
-
-static struct piece_info active_piece;
-
-static struct coord active_piece_block(size_t i)
-{
-  assert(i < BLOCKS_PER_PIECE);
-  const struct coord * const offset =
-    &delta[active_piece.kind][active_piece.rotation][i];
-
-  return (struct coord){
-    .x = active_piece.x - offset->x, .y = active_piece.y - offset->y
-  };
-}
-
 static void add_active_piece()
 {
-  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++) {
-    struct coord pos = active_piece_block(i);
-    assert(!test_playfield(pos));
-    set_playfield(pos);
-  }
+  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++)
+    set_playfield(active_piece_block(i));
 }
 
 static void remove_active_piece()
 {
-  for (size_t i = 0; i != 4; i++) {
-    struct coord pos = active_piece_block(i);
-    assert(test_playfield(pos));
-    clear_playfield(pos);
-  }
+  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++)
+    clear_playfield(active_piece_block(i));
 }
 
 static bool check_overlap()
@@ -146,7 +166,7 @@ static bool check_overlap()
 
 static signed char get_active_piece_x_bounds()
 {
-  signed char result = active_piece.x;
+  signed char result = active_piece.pos.x;
   for (size_t i = 0; i != BLOCKS_PER_PIECE; i++) {
     const signed char x = active_piece_block(i).x;
     if (x < result) result = x;
@@ -155,12 +175,14 @@ static signed char get_active_piece_x_bounds()
   return result;
 }
 
+/* --- I/O --- */
+
 volatile bool alarmed;
 
 static void alarm_handler(int sig)
 { if (sig == SIGALRM) alarmed = true; }
 
-static bool is_timer()
+static bool timer_occured()
 {
   if (alarmed) {
     alarmed = false;
@@ -169,14 +191,17 @@ static bool is_timer()
   return false;
 }
 
-static const struct sigaction alarm_action = {.sa_handler = &alarm_handler};
+static void die(const char *msg)
+{
+  perror(msg);
+  exit(EXIT_FAILURE);
+}
 
 static void initialize_timer()
 {
-  if (sigaction(SIGALRM, &alarm_action, NULL) == -1) {
-    perror("sigaction");
-    exit(EXIT_FAILURE);
-  }
+  const struct sigaction alarm_action = {.sa_handler = &alarm_handler};
+
+  if (sigaction(SIGALRM, &alarm_action, NULL) == -1) die(__FUNCTION__);
 }
 
 static void set_timer_interval(unsigned int usec)
@@ -184,15 +209,18 @@ static void set_timer_interval(unsigned int usec)
   assert(usec > 0);
   const struct timeval interval = { usec / 1000000, usec % 1000000 };
   const struct itimerval timer = {interval, interval};
-  if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
-    perror("setitimer");
-    exit(EXIT_FAILURE);
-  }  
+  if (setitimer(ITIMER_REAL, &timer, NULL) == -1) die(__FUNCTION__);
 }
 
 #define CTRL(C) ((C) ^ 0b01000000)
 
-enum {
+enum event {
+  ESCAPE = '\e',
+  RETURN = '\r',
+  SPACE = ' ',
+  CTRL_Q = CTRL('Q'),
+  LETTER_P = 'p',
+  LETTER_Q = 'q',
   ARROW_LEFT = 1000,
   ARROW_RIGHT,
   ARROW_UP,
@@ -206,7 +234,7 @@ enum {
   TICK
 };
 
-static int read_event()
+static enum event read_event()
 {
   static enum { START, ESC_SEQ = '\e', BRACKET_SEQ = '[' } state = START;
   static unsigned short arg = 0;
@@ -217,11 +245,10 @@ static int read_event()
 
     if (n == -1) {
       if (errno == EINTR) {
-        if (is_timer()) return TICK;
+        if (timer_occured()) return TICK;
         continue;
       }
-      perror("read");
-      exit(EXIT_FAILURE); // Return -1 on other read errors
+      die("read");
     } else if (n == 0) {
       if (state == START) continue;
       state = START;
@@ -288,14 +315,10 @@ void enable_raw_mode()
 
   if (!isatty(STDIN_FILENO)) {
     errno = ENOTTY;
-    perror("enable_raw_mode");
-    exit(EXIT_FAILURE);
+    die(__FUNCTION__);
   }
   atexit(atExit);
-  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
-    perror("tcgetattr");
-    exit(EXIT_FAILURE);
-  }
+  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
 
   raw = orig_termios;
   /* input modes: no break, no CR to NL, no parity check, no strip char,
@@ -313,10 +336,7 @@ void enable_raw_mode()
   raw.c_cc[VTIME] = 1; /* 100 ms timeout (unit is tens of second). */
 
   /* put terminal in raw mode after flushing */
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) < 0) {
-    perror("tcsetattr");
-    exit(EXIT_FAILURE);
-  }
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) < 0) die("tcsetattr");
 }
 
 enum dots
@@ -330,10 +350,20 @@ static const unsigned char brl[BRAILLE_CELL_WIDTH][BRAILLE_CELL_HEIGHT] = {
 };
 
 static int score = 0;
+static size_t lines_cleared = 0;
 static short level = 1;
 
 static inline signed char min(signed char a, signed char b)
 { return a < b ? a : b; }
+
+static inline unsigned char *utf8_braille(unsigned char *utf8, unsigned char dots)
+{
+  *utf8++ = 0xE2;
+  *utf8++ = 0xA0 | (dots >> 6);
+  *utf8++ = 0x80 | (dots & 0x3F);
+
+  return utf8;
+}
 
 static void draw_screen()
 {
@@ -346,15 +376,14 @@ static void draw_screen()
 
   unsigned char utf8[sizeof(line) * 3];
   unsigned char *p = &utf8[0];
-  for (size_t i = 0; i != sizeof(line); i++) {
-    *p++ = 0xE2;
-    *p++ = 0xA0 | (line[i] >> 6);
-    *p++ = 0x80 | (line[i] & 0x3F);
-  }
+  for (size_t i = 0; i != sizeof(line); i++)
+    p = utf8_braille(p, line[i]);
 
   write(STDOUT_FILENO, "\e[H", 3);
   write(STDOUT_FILENO, utf8, sizeof(utf8));
-  printf("  %d points, level %d\e[1;13H", score, level);
+  printf("  %d %d %d\e[0K\e[1;13H",
+    score, lines_cleared, level
+  );
   fflush(stdout);
 }
 
@@ -372,6 +401,7 @@ static void new_game()
   active_piece = random_piece();
   score = 0;
   level = 1;
+  lines_cleared = 0;
   add_active_piece();
 }
 
@@ -381,11 +411,11 @@ static inline bool is_complete_line(size_t y)
   return (playfield[y] ^ mask) == 0;
 }
 
-static const int points_per_line[] = { 1, 40, 100, 300, 1200 };
+static const int points_per_line[] = { 40, 100, 300, 1200 };
 
 static int eliminate_lines()
 {
-  int lines = 0;
+  size_t lines = 0;
 
   for (size_t y = 0; y < HEIGHT; y++) {
     if (!is_complete_line(y)) continue;
@@ -395,14 +425,15 @@ static int eliminate_lines()
     lines++;
   }
 
-  return points_per_line[lines];
+  lines_cleared += lines;
+
+  return lines? points_per_line[lines - 1] * level: 0;
 }
 
 static void handle_piece_bottom()
 {
   score += eliminate_lines();
-
-  level = 1 + score / 700;
+  level = 1 + lines_cleared / 10;
 
   active_piece = random_piece();
 
@@ -419,10 +450,10 @@ static bool do_move_down()
   bool bottom = false;
 
   remove_active_piece();
-  active_piece.y++;
+  active_piece.pos.y++;
   if (check_overlap()) {
     bottom = true;
-    active_piece.y--;
+    active_piece.pos.y--;
   }
   add_active_piece();
 
@@ -440,18 +471,18 @@ static void hard_drop()
 static void move_left()
 {
   remove_active_piece();
-  active_piece.x--;
+  active_piece.pos.x--;
   if (check_overlap())
-    active_piece.x++;
+    active_piece.pos.x++;
   add_active_piece();
 }
 
 static void move_right()
 {
   remove_active_piece();
-  active_piece.x++;
+  active_piece.pos.x++;
   if (check_overlap())
-    active_piece.x--;
+    active_piece.pos.x--;
   add_active_piece();
 }
 
@@ -459,7 +490,7 @@ static void rotate()
 {
   const enum orientation rotation = active_piece.rotation;
   remove_active_piece();
-  active_piece.rotation = (rotation + 1) % ROTATIONS;
+  active_piece.rotation = (rotation + 1) % MAX_ROTATIONS;
   if (check_overlap()) active_piece.rotation = rotation;
   add_active_piece();
 }
@@ -518,19 +549,20 @@ int main()
     case ARROW_DOWN:
       move_right();
       break;
+    case 'l':
     case ARROW_RIGHT:
-    case CTRL('M'):
+    case RETURN:
       rotate();
       break;
-    case ' ':
+    case SPACE:
       hard_drop();
       break;
-    case 'p':
-      while (read_event() != 'p') continue;
+    case LETTER_P:
+      while (read_event() != LETTER_P) continue;
       break;
-    case 'q':
-    case CTRL('Q'):
-    case CTRL('['):
+    case LETTER_Q:
+    case CTRL_Q:
+    case ESCAPE:
       fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout);
       exit(EXIT_SUCCESS);
     default:
