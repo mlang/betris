@@ -212,12 +212,10 @@ static void set_timer_interval(unsigned int usec)
   if (setitimer(ITIMER_REAL, &timer, NULL) == -1) die(__FUNCTION__);
 }
 
-#define CTRL(C) ((C) ^ 0b01000000)
-
 enum event {
   RETURN = '\r',
   ESCAPE = '\e',
-  CTRL_Q = CTRL('Q'),
+  CTRL_Q = '',
   SPACE = ' ',
   SMALL_LETTER_H = 'h',
   SMALL_LETTER_J = 'j',
@@ -388,7 +386,7 @@ static void draw_screen()
   printf("  %lu %lu %lu\e[0K\e[1;13H",
     score, lines_cleared, level
   );
-  fflush(stdout);
+  if (fflush(stdout) == EOF) die(__FUNCTION__);
 }
 
 static const char CLEAR_SCREEN[] = "\e[2J";
@@ -396,7 +394,7 @@ static const char CLEAR_SCREEN[] = "\e[2J";
 static void clear_screen()
 {
   write(STDOUT_FILENO, CLEAR_SCREEN, sizeof(CLEAR_SCREEN) - 1);
-  fflush(stdout);
+  if (fflush(stdout) == EOF) die(__FUNCTION__);
 }
 
 static void new_game()
@@ -504,27 +502,27 @@ static void rotate()
 static void welcome()
 {
   clear_screen();
-  fputs("\e[2;8H" "Welcome to BETRIS"
-        "\e[4;1H" "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
-        "\e[5;1H" "Tetrominos, fall from the right to the left of the screen. Tetrominos are"
-        "\e[6;1H" "composed of 4 connected dots. The player's goal is to move and rotate"
-        "\e[7;1H" "these Tetrominos to create complete vertical lines, which then disappear,"
-        "\e[8;1H" "making space for new Tetrominos. The game ends when there's no more space"
-        "\e[9;1H" "for new Tetrominos. The vertical size of the playfield is 10, while the"
-        "\e[10;1H" "braille display will only show a 4-dot high section of the playfield."
-        "\e[12;1H" "Instructions:"
-        "\e[13;1H" "1. Use the following keys to control the pieces:"
-        "\e[14;4H"    "- UP ARROW: Move piece up"
-        "\e[15;4H"    "- DOWN ARROW: Move piece down"
-        "\e[16;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
-        "\e[17;4H"    "- LEFT ARROW: Move piece left"
-        "\e[18;4H"    "- SPACE: Drop piece to the bottom"
-        "\e[19;4H"    "- 'p': Pause the game"
-        "\e[20;4H"    "- 'q' or ESC: Quit the game"
-        "\e[22;1H" "Press any key to start the game..."
-        "\e[22;1H", stdout
-  );
-  fflush(stdout);
+  if (fputs("\e[2;8H" "Welcome to BETRIS"
+            "\e[4;1H" "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
+            "\e[5;1H" "Tetrominos, fall from the right to the left of the screen. Tetrominos are"
+            "\e[6;1H" "composed of 4 connected dots. The player's goal is to move and rotate"
+            "\e[7;1H" "these Tetrominos to create complete vertical lines, which then disappear,"
+            "\e[8;1H" "making space for new Tetrominos. The game ends when there's no more space"
+            "\e[9;1H" "for new Tetrominos. The vertical size of the playfield is 10, while the"
+            "\e[10;1H" "braille display will only show a 4-dot high section of the playfield."
+            "\e[12;1H" "Instructions:"
+            "\e[13;1H" "1. Use the following keys to control the pieces:"
+            "\e[14;4H"    "- UP ARROW: Move piece up"
+            "\e[15;4H"    "- DOWN ARROW: Move piece down"
+            "\e[16;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
+            "\e[17;4H"    "- LEFT ARROW: Move piece left"
+            "\e[18;4H"    "- SPACE: Drop piece to the bottom"
+            "\e[19;4H"    "- 'p': Pause the game"
+            "\e[20;4H"    "- 'q' or ESC: Quit the game"
+            "\e[22;1H" "Press any key to start the game..."
+            "\e[22;1H", stdout
+      ) == EOF) die(__FUNCTION__);
+  if (fflush(stdout) == EOF) die(__FUNCTION__);
   while (read_event() == TICK) continue;
 }
 
@@ -569,7 +567,8 @@ int main()
     case SMALL_LETTER_Q:
     case CTRL_Q:
     case ESCAPE:
-      fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout);
+      if (fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout) == EOF)
+        die("fputs");
       exit(EXIT_SUCCESS);
     default:
       continue;

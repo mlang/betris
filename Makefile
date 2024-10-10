@@ -1,7 +1,7 @@
 CC=bin/cosmocc
-CFLAGS=-Os
+CFLAGS=-Wall -Os
 ifeq ($(CC), bin/cosmocc)
-CFLAGS+=-mtiny
+CFLAGS+=-mtiny -s
 else
 LDFLAGS=-lm
 endif
@@ -11,6 +11,7 @@ betris.exe: betris.c $(CC)
 
 bin/cosmocc: cosmocc.zip
 	unzip $<
+	touch $@
 
 cosmocc.zip:
 	wget https://cosmo.zip/pub/cosmocc/cosmocc.zip
