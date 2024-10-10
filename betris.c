@@ -27,7 +27,11 @@ enum {
   WIDTH = 10,
   HEIGHT = 22,
   BRAILLE_CELL_WIDTH = 2,
-  BRAILLE_CELL_HEIGHT = 4
+  BRAILLE_CELL_HEIGHT = 4,
+  UNICODE_BRAILLE = 0x2800,
+  UPPER_HALF_BLOCK = 0x2580,
+  LOWER_HALF_BLOCK = 0x2584,
+  FULL_BLOCK = 0x2588
 };
 
 struct coord { signed char x, y; };
@@ -358,14 +362,31 @@ static size_t level = 1;
 static inline signed char min(signed char a, signed char b)
 { return a < b ? a : b; }
 
-static inline char *utf8_braille(char *utf8, unsigned char dots)
+
+#define BITS(n) ((1U << n) - 1)
+
+static char *encode_utf8(char *utf8, uint32_t codepoint)
 {
-  *utf8++ = 0xE2;
-  *utf8++ = 0xA0 | (dots >> 6);
-  *utf8++ = 0x80 | (dots & 0x3F);
+  if (codepoint <= BITS(7)) {
+    *utf8++ = codepoint;
+  } else if (codepoint <= BITS(11)) {
+    *utf8++ = 0xC0 | ((codepoint >> 6) & BITS(5));
+    *utf8++ = 0x80 | (codepoint & BITS(6));
+  } else if (codepoint <= BITS(16)) {
+    *utf8++ = 0xE0 | ((codepoint >> 12) & BITS(4));
+    *utf8++ = 0x80 | ((codepoint >> 6) & BITS(6));
+    *utf8++ = 0x80 | (codepoint & BITS(6));
+  } else if (codepoint <= BITS(21)) {
+    *utf8++ = 0xF0 | ((codepoint >> 18) & BITS(3));
+    *utf8++ = 0x80 | ((codepoint >> 12) & BITS(6));
+    *utf8++ = 0x80 | ((codepoint >> 6) & BITS(6));
+    *utf8++ = 0x80 | (codepoint & BITS(6));
+  }
 
   return utf8;
 }
+
+#define GOTO(y, x) "\e[" #y ";" #x "H"
 
 static void draw_screen()
 {
@@ -380,30 +401,32 @@ static void draw_screen()
   char *p = &utf8[0];
   p = stpcpy(p, "\e[H");
   for (size_t i = 0; i != sizeof(line); i++)
-    p = utf8_braille(p, line[i]);
+    p = encode_utf8(p, UNICODE_BRAILLE | line[i]);
 
   p += sprintf(p, "  %lu %lu %lu\e[0K",
     score, lines_cleared, level
   );
+
   p = stpcpy(p, "\r\n\r\n\r\n");
 
   for (size_t y = 2; y != HEIGHT; y += 2) {
     for (size_t x = 0; x != WIDTH; x++) {
-      if (test_playfield((struct coord){ .x = x, .y = y }) &&
-          test_playfield((struct coord){ .x = x, .y = y + 1 })) {
-        p = stpcpy(p, "\xE2\x96\x88");
-      } else if (test_playfield((struct coord){ .x = x, .y = y })) {
-        p = stpcpy(p, "\xE2\x96\x80");
-      } else if (test_playfield((struct coord){ .x = x, .y = y + 1 })) {
-        p = stpcpy(p, "\xE2\x96\x84");
-      } else {
-        p = stpcpy(p, " ");
+      const struct coord upper = { x, y }, lower = { x, y + 1 };
+      uint32_t codepoint = SPACE;
+
+      if (test_playfield(upper) && test_playfield(lower)) {
+        codepoint = FULL_BLOCK;
+      } else if (test_playfield(upper)) {
+        codepoint = UPPER_HALF_BLOCK;
+      } else if (test_playfield(lower)) {
+        codepoint = LOWER_HALF_BLOCK;
       }
+      p = encode_utf8(p, codepoint);
     }
     p = stpcpy(p, "\r\n");
   }
 
-  p = stpcpy(p, "\e[1;13H");
+  p = stpcpy(p, GOTO(1, 13));
 
   if (write(STDOUT_FILENO, utf8, p - utf8) != p - utf8) die(__FUNCTION__);
   if (fflush(stdout) == EOF) die(__FUNCTION__);
