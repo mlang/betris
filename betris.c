@@ -215,12 +215,16 @@ static void set_timer_interval(unsigned int usec)
 #define CTRL(C) ((C) ^ 0b01000000)
 
 enum event {
-  ESCAPE = '\e',
   RETURN = '\r',
-  SPACE = ' ',
+  ESCAPE = '\e',
   CTRL_Q = CTRL('Q'),
-  LETTER_P = 'p',
-  LETTER_Q = 'q',
+  SPACE = ' ',
+  SMALL_LETTER_H = 'h',
+  SMALL_LETTER_J = 'j',
+  SMALL_LETTER_K = 'k',
+  SMALL_LETTER_L = 'l',
+  SMALL_LETTER_P = 'p',
+  SMALL_LETTER_Q = 'q',
   ARROW_LEFT = 1000,
   ARROW_RIGHT,
   ARROW_UP,
@@ -349,9 +353,9 @@ static const unsigned char brl[BRAILLE_CELL_WIDTH][BRAILLE_CELL_HEIGHT] = {
   { dot4, dot5, dot6, dot8 }, { dot1, dot2, dot3, dot7 }
 };
 
-static int score = 0;
+static size_t score = 0;
 static size_t lines_cleared = 0;
-static short level = 1;
+static size_t level = 1;
 
 static inline signed char min(signed char a, signed char b)
 { return a < b ? a : b; }
@@ -381,7 +385,7 @@ static void draw_screen()
 
   write(STDOUT_FILENO, "\e[H", 3);
   write(STDOUT_FILENO, utf8, sizeof(utf8));
-  printf("  %d %d %d\e[0K\e[1;13H",
+  printf("  %lu %lu %lu\e[0K\e[1;13H",
     score, lines_cleared, level
   );
   fflush(stdout);
@@ -430,10 +434,14 @@ static int eliminate_lines()
   return lines? points_per_line[lines - 1] * level: 0;
 }
 
+static void adjust_speed()
+{ set_timer_interval(1000000 * pow(0.95, level)); }
+
 static void handle_piece_bottom()
 {
   score += eliminate_lines();
   level = 1 + lines_cleared / 10;
+  adjust_speed();
 
   active_piece = random_piece();
 
@@ -456,8 +464,6 @@ static bool do_move_down()
     active_piece.pos.y--;
   }
   add_active_piece();
-
-  /* delay = 800 * pow(0.9, level); */
 
   return bottom;
 }
@@ -532,24 +538,24 @@ int main()
   initialize_timer();
   new_game();
   draw_screen();
-  set_timer_interval(1000000 * pow(0.9, level));
+  adjust_speed();
 
   for (;;) {
     switch (read_event()) {
-    case 'h':
+    case SMALL_LETTER_H:
     case ARROW_LEFT:
     case TICK:
       move_down();
       break;
-    case 'k':
+    case SMALL_LETTER_K:
     case ARROW_UP:
       move_left();
       break;
-    case 'j':
+    case SMALL_LETTER_J:
     case ARROW_DOWN:
       move_right();
       break;
-    case 'l':
+    case SMALL_LETTER_L:
     case ARROW_RIGHT:
     case RETURN:
       rotate();
@@ -557,10 +563,10 @@ int main()
     case SPACE:
       hard_drop();
       break;
-    case LETTER_P:
-      while (read_event() != LETTER_P) continue;
+    case SMALL_LETTER_P:
+      while (read_event() != SMALL_LETTER_P) continue;
       break;
-    case LETTER_Q:
+    case SMALL_LETTER_Q:
     case CTRL_Q:
     case ESCAPE:
       fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout);
