@@ -358,7 +358,7 @@ static size_t level = 1;
 static inline signed char min(signed char a, signed char b)
 { return a < b ? a : b; }
 
-static inline unsigned char *utf8_braille(unsigned char *utf8, unsigned char dots)
+static inline char *utf8_braille(char *utf8, unsigned char dots)
 {
   *utf8++ = 0xE2;
   *utf8++ = 0xA0 | (dots >> 6);
@@ -376,16 +376,36 @@ static void draw_screen()
       if (test_playfield((struct coord){ .x = x + offset, .y = y }))
         line[(HEIGHT - 1 - y) / 2] |= brl[y % BRAILLE_CELL_WIDTH][x];
 
-  unsigned char utf8[sizeof(line) * 3];
-  unsigned char *p = &utf8[0];
+  char utf8[sizeof(line) * 3 + 100 * 3 + 42];
+  char *p = &utf8[0];
+  p = stpcpy(p, "\e[H");
   for (size_t i = 0; i != sizeof(line); i++)
     p = utf8_braille(p, line[i]);
 
-  write(STDOUT_FILENO, "\e[H", 3);
-  write(STDOUT_FILENO, utf8, sizeof(utf8));
-  printf("  %lu %lu %lu\e[0K\e[1;13H",
+  p += sprintf(p, "  %lu %lu %lu\e[0K",
     score, lines_cleared, level
   );
+  p = stpcpy(p, "\r\n\r\n\r\n");
+
+  for (size_t y = 2; y != HEIGHT; y += 2) {
+    for (size_t x = 0; x != WIDTH; x++) {
+      if (test_playfield((struct coord){ .x = x, .y = y }) &&
+          test_playfield((struct coord){ .x = x, .y = y + 1 })) {
+        p = stpcpy(p, "\xE2\x96\x88");
+      } else if (test_playfield((struct coord){ .x = x, .y = y })) {
+        p = stpcpy(p, "\xE2\x96\x80");
+      } else if (test_playfield((struct coord){ .x = x, .y = y + 1 })) {
+        p = stpcpy(p, "\xE2\x96\x84");
+      } else {
+        p = stpcpy(p, " ");
+      }
+    }
+    p = stpcpy(p, "\r\n");
+  }
+
+  p = stpcpy(p, "\e[1;13H");
+
+  if (write(STDOUT_FILENO, utf8, p - utf8) != p - utf8) die(__FUNCTION__);
   if (fflush(stdout) == EOF) die(__FUNCTION__);
 }
 
@@ -524,6 +544,7 @@ static void welcome()
       ) == EOF) die(__FUNCTION__);
   if (fflush(stdout) == EOF) die(__FUNCTION__);
   while (read_event() == TICK) continue;
+  clear_screen();
 }
 
 static inline void seed_rng() { srand((unsigned)time(NULL)); }
@@ -535,10 +556,11 @@ int main()
   welcome();
   initialize_timer();
   new_game();
-  draw_screen();
   adjust_speed();
 
   for (;;) {
+    draw_screen();
+
     switch (read_event()) {
     case SMALL_LETTER_H:
     case ARROW_LEFT:
