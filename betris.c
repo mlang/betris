@@ -8,12 +8,23 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
+#define BITS(n) ((1U << n) - 1)
+#define CSI "\e["
+#define ERASE_DISPLAY CSI "2J"
+#define ERASE_END_OF_LINE CSI "K"
+#define GOTO(y, x) CSI #y ";" #x "H"
+#define GOTO_TOP_LEFT CSI "H"
+#define HIDE_CURSOR CSI "?25l"
+#define SHOW_CURSOR CSI "?25h"
 
 enum piece { I, O, L, J, T, S, Z };
 enum orientation { DOWN, LEFT, UP, RIGHT };
@@ -78,8 +89,6 @@ struct piece_info
 
 static struct piece_info bag[PIECES];
 static size_t bag_count = 0;
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*a))
 
 static inline void fill_bag()
 {
@@ -362,9 +371,6 @@ static size_t level = 1;
 static inline signed char min(signed char a, signed char b)
 { return a < b ? a : b; }
 
-
-#define BITS(n) ((1U << n) - 1)
-
 static char *encode_utf8(char *utf8, uint32_t codepoint)
 {
   if (codepoint <= BITS(7)) {
@@ -376,7 +382,8 @@ static char *encode_utf8(char *utf8, uint32_t codepoint)
     *utf8++ = 0xE0 | ((codepoint >> 12) & BITS(4));
     *utf8++ = 0x80 | ((codepoint >> 6) & BITS(6));
     *utf8++ = 0x80 | (codepoint & BITS(6));
-  } else if (codepoint <= BITS(21)) {
+  } else {
+    assert(codepoint <= BITS(21));
     *utf8++ = 0xF0 | ((codepoint >> 18) & BITS(3));
     *utf8++ = 0x80 | ((codepoint >> 12) & BITS(6));
     *utf8++ = 0x80 | ((codepoint >> 6) & BITS(6));
@@ -385,8 +392,6 @@ static char *encode_utf8(char *utf8, uint32_t codepoint)
 
   return utf8;
 }
-
-#define GOTO(y, x) "\e[" #y ";" #x "H"
 
 static void draw_screen()
 {
@@ -397,46 +402,37 @@ static void draw_screen()
       if (test_playfield((struct coord){ .x = x + offset, .y = y }))
         line[(HEIGHT - 1 - y) / 2] |= brl[y % BRAILLE_CELL_WIDTH][x];
 
-  char utf8[sizeof(line) * 3 + 100 * 3 + 42];
+  char utf8[3 + sizeof(line) * 3 + 6 + 100 * 3 + 42];
   char *p = &utf8[0];
-  p = stpcpy(p, "\e[H");
+  p = stpcpy(p, HIDE_CURSOR GOTO_TOP_LEFT);
   for (size_t i = 0; i != sizeof(line); i++)
     p = encode_utf8(p, UNICODE_BRAILLE | line[i]);
 
-  p += sprintf(p, "  %lu %lu %lu\e[0K",
-    score, lines_cleared, level
-  );
+  p += sprintf(p, "  %lu %lu %lu", score, lines_cleared, level);
+  p = stpcpy(p, ERASE_END_OF_LINE);
 
   p = stpcpy(p, "\r\n\r\n\r\n");
 
   for (size_t y = 2; y != HEIGHT; y += 2) {
     for (size_t x = 0; x != WIDTH; x++) {
       const struct coord upper = { x, y }, lower = { x, y + 1 };
-      uint32_t codepoint = SPACE;
+      uint32_t glyph = SPACE;
 
       if (test_playfield(upper) && test_playfield(lower)) {
-        codepoint = FULL_BLOCK;
+        glyph = FULL_BLOCK;
       } else if (test_playfield(upper)) {
-        codepoint = UPPER_HALF_BLOCK;
+        glyph = UPPER_HALF_BLOCK;
       } else if (test_playfield(lower)) {
-        codepoint = LOWER_HALF_BLOCK;
+        glyph = LOWER_HALF_BLOCK;
       }
-      p = encode_utf8(p, codepoint);
+      p = encode_utf8(p, glyph);
     }
     p = stpcpy(p, "\r\n");
   }
 
-  p = stpcpy(p, GOTO(1, 13));
+  p = stpcpy(p, GOTO(1, 13) SHOW_CURSOR);
 
   if (write(STDOUT_FILENO, utf8, p - utf8) != p - utf8) die(__FUNCTION__);
-  if (fflush(stdout) == EOF) die(__FUNCTION__);
-}
-
-static const char CLEAR_SCREEN[] = "\e[2J";
-
-static void clear_screen()
-{
-  write(STDOUT_FILENO, CLEAR_SCREEN, sizeof(CLEAR_SCREEN) - 1);
   if (fflush(stdout) == EOF) die(__FUNCTION__);
 }
 
@@ -450,11 +446,8 @@ static void new_game()
   add_active_piece();
 }
 
-static inline bool is_complete_line(size_t y)
-{
-  const unsigned short mask = (1 << WIDTH) - 1;
-  return (playfield[y] ^ mask) == 0;
-}
+static bool is_complete_line(size_t y)
+{ return (playfield[y] ^ BITS(WIDTH)) == 0; }
 
 static const int points_per_line[] = { 40, 100, 300, 1200 };
 
@@ -544,30 +537,31 @@ static void rotate()
 
 static void welcome()
 {
-  clear_screen();
-  if (fputs("\e[2;8H" "Welcome to BETRIS"
-            "\e[4;1H" "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
-            "\e[5;1H" "Tetrominos, fall from the right to the left of the screen. Tetrominos are"
-            "\e[6;1H" "composed of 4 connected dots. The player's goal is to move and rotate"
-            "\e[7;1H" "these Tetrominos to create complete vertical lines, which then disappear,"
-            "\e[8;1H" "making space for new Tetrominos. The game ends when there's no more space"
-            "\e[9;1H" "for new Tetrominos. The vertical size of the playfield is 10, while the"
-            "\e[10;1H" "braille display will only show a 4-dot high section of the playfield."
-            "\e[12;1H" "Instructions:"
-            "\e[13;1H" "1. Use the following keys to control the pieces:"
-            "\e[14;4H"    "- UP ARROW: Move piece up"
-            "\e[15;4H"    "- DOWN ARROW: Move piece down"
-            "\e[16;4H"    "- RIGHT ARROW or ENTER: Rotate piece"
-            "\e[17;4H"    "- LEFT ARROW: Move piece left"
-            "\e[18;4H"    "- SPACE: Drop piece to the bottom"
-            "\e[19;4H"    "- 'p': Pause the game"
-            "\e[20;4H"    "- 'q' or ESC: Quit the game"
-            "\e[22;1H" "Press any key to start the game..."
-            "\e[22;1H", stdout
+  if (fputs(ERASE_DISPLAY
+            GOTO(2, 8) "Welcome to BETRIS"
+            GOTO(4, 1) "BETRIS is a clone of a classic puzzle game where geometric shapes, known as"
+            GOTO(5, 1) "Tetrominos, fall from the right to the left of the screen. Tetrominos are"
+            GOTO(6, 1) "composed of 4 connected dots. The player's goal is to move and rotate"
+            GOTO(7, 1) "these Tetrominos to create complete vertical lines, which then disappear,"
+            GOTO(8, 1) "making space for new Tetrominos. The game ends when there's no more space"
+            GOTO(9, 1) "for new Tetrominos. The vertical size of the playfield is 10, while the"
+            GOTO(10, 1) "braille display will only show a 4-dot high section of the playfield."
+            GOTO(12, 1) "Instructions:"
+            GOTO(13, 1) "1. Use the following keys to control the pieces:"
+            GOTO(14, 4)    "- UP ARROW: Move piece up"
+            GOTO(15, 4)    "- DOWN ARROW: Move piece down"
+            GOTO(16, 4)    "- RIGHT ARROW or ENTER: Rotate piece"
+            GOTO(17, 4)    "- LEFT ARROW: Move piece left"
+            GOTO(18, 4)    "- SPACE: Drop piece to the bottom"
+            GOTO(19, 4)    "- 'p': Pause the game"
+            GOTO(20, 4)    "- 'q' or ESC: Quit the game"
+            GOTO(22, 1) "Press any key to start the game..."
+            GOTO(22, 1), stdout
       ) == EOF) die(__FUNCTION__);
   if (fflush(stdout) == EOF) die(__FUNCTION__);
   while (read_event() == TICK) continue;
-  clear_screen();
+  if (fputs(ERASE_DISPLAY, stdout) == EOF) die(__FUNCTION__);
+  if (fflush(stdout) == EOF) die(__FUNCTION__);
 }
 
 static inline void seed_rng() { srand((unsigned)time(NULL)); }
