@@ -415,25 +415,24 @@ static void draw_screen()
 
   for (size_t y = 2; y != HEIGHT; y += 2) {
     for (size_t x = 0; x != WIDTH; x++) {
+      static const uint32_t glyphs[1 << 2] = {
+        SPACE, UPPER_HALF_BLOCK, LOWER_HALF_BLOCK, FULL_BLOCK
+      };
       const struct coord upper = { x, y }, lower = { x, y + 1 };
-      uint32_t glyph = SPACE;
-
-      if (test_playfield(upper) && test_playfield(lower)) {
-        glyph = FULL_BLOCK;
-      } else if (test_playfield(upper)) {
-        glyph = UPPER_HALF_BLOCK;
-      } else if (test_playfield(lower)) {
-        glyph = LOWER_HALF_BLOCK;
-      }
-      p = encode_utf8(p, glyph);
+      p = encode_utf8(p,
+        glyphs[test_playfield(upper) | (test_playfield(lower) << 1)]
+      );
     }
     p = stpcpy(p, "\r\n");
   }
 
   p = stpcpy(p, GOTO(1, 13) SHOW_CURSOR);
 
-  if (write(STDOUT_FILENO, utf8, p - utf8) != p - utf8) die(__FUNCTION__);
-  if (fflush(stdout) == EOF) die(__FUNCTION__);
+  {
+    const size_t length = p - utf8;
+    if (write(STDOUT_FILENO, utf8, length) != length) die(__FUNCTION__);
+    if (fflush(stdout) == EOF) die(__FUNCTION__);
+  }
 }
 
 static void new_game()
