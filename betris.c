@@ -190,17 +190,19 @@ static signed char get_active_piece_x_bounds()
 
 /* --- I/O --- */
 
-volatile bool alarmed;
+volatile sig_atomic_t alarmed;
 
 static void alarm_handler(int sig)
-{ if (sig == SIGALRM) alarmed = true; }
+{ if (sig == SIGALRM) alarmed = 1; }
 
 static bool timer_occured()
 {
   if (alarmed) {
-    alarmed = false;
+    alarmed = 1;
+
     return true;
   }
+
   return false;
 }
 
@@ -246,12 +248,13 @@ enum event {
   END_KEY,
   PAGE_UP,
   PAGE_DOWN,
+
   TICK
 };
 
 static enum event read_event()
 {
-  static enum { START, ESC_SEQ = '\e', BRACKET_SEQ = '[' } state = START;
+  static enum { START, ESC_SEQ = '\e', CSI_SEQ = '[' } state = START;
   static unsigned short arg = 0;
 
   while (1) {
@@ -263,11 +266,11 @@ static enum event read_event()
         if (timer_occured()) return TICK;
         continue;
       }
-      die("read");
+      die(__FUNCTION__);
     } else if (n == 0) {
       if (state == START) continue;
       state = START;
-      return '\e';
+      return ESCAPE;
     }
 
     switch (state) {
@@ -281,7 +284,7 @@ static enum event read_event()
 
     case ESC_SEQ:
       if (ch == '[') {
-        state = BRACKET_SEQ;
+        state = CSI_SEQ;
         arg = 0;
       } else {
         state = START;
@@ -289,7 +292,7 @@ static enum event read_event()
       }
       break;
 
-    case BRACKET_SEQ:
+    case CSI_SEQ:
       if (ch >= '0' && ch <= '9') {
         arg = (arg * 10) + (ch - '0');
         break;
@@ -321,7 +324,7 @@ static struct termios orig_termios;
 static void disable_raw_mode()
 { tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios); }
 
-static void atExit(void)
+static void at_exit(void)
 { disable_raw_mode(); }
 
 void enable_raw_mode()
@@ -332,7 +335,7 @@ void enable_raw_mode()
     errno = ENOTTY;
     die(__FUNCTION__);
   }
-  atexit(atExit);
+
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
 
   raw = orig_termios;
@@ -352,6 +355,8 @@ void enable_raw_mode()
 
   /* put terminal in raw mode after flushing */
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) < 0) die("tcsetattr");
+
+  atexit(at_exit);
 }
 
 enum dots
@@ -435,9 +440,6 @@ static void draw_screen()
   }
 }
 
-static void adjust_speed()
-{ set_timer_interval(1000000 * pow(0.95, level)); }
-
 static void new_game()
 {
   memset(playfield, 0, sizeof(playfield));
@@ -446,7 +448,6 @@ static void new_game()
   level = 1;
   lines_cleared = 0;
   add_active_piece();
-  adjust_speed();
 }
 
 static bool is_complete_line(size_t y)
@@ -470,6 +471,9 @@ static int eliminate_lines()
 
   return lines? points_per_line[lines - 1] * level: 0;
 }
+
+static void adjust_speed()
+{ set_timer_interval(1000000 * pow(0.95, level)); }
 
 static void handle_piece_bottom()
 {
@@ -573,6 +577,7 @@ int main()
   welcome();
   initialize_timer();
   new_game();
+  adjust_speed();
 
   for (;;) {
     draw_screen();
@@ -608,6 +613,9 @@ int main()
       if (fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout) == EOF)
         die("fputs");
       exit(EXIT_SUCCESS);
+    default:
+      continue;
     }
+    draw_screen();
   }
 }
