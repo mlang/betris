@@ -31,18 +31,13 @@ enum orientation { DOWN, LEFT, UP, RIGHT };
 enum {
   PIECES = Z + 1,
   MAX_ROTATIONS = RIGHT + 1,
-  SPAWN = DOWN,
-  SPAWN_X = 4,
-  SPAWN_Y = 2,
+  SPAWN = DOWN, SPAWN_X = 4, SPAWN_Y = 2,
   BLOCKS_PER_PIECE = 4,
-  WIDTH = 10,
-  HEIGHT = 22,
-  BRAILLE_CELL_WIDTH = 2,
-  BRAILLE_CELL_HEIGHT = 4,
+  WIDTH = 10, HEIGHT = 22,
+
+  BRAILLE_CELL_WIDTH = 2, BRAILLE_CELL_HEIGHT = 4,
+  UPPER_HALF_BLOCK = 0x2580, LOWER_HALF_BLOCK = 0x2584, FULL_BLOCK = 0x2588
   UNICODE_BRAILLE = 0x2800,
-  UPPER_HALF_BLOCK = 0x2580,
-  LOWER_HALF_BLOCK = 0x2584,
-  FULL_BLOCK = 0x2588
 };
 
 struct coord { signed char x, y; };
@@ -440,6 +435,9 @@ static void draw_screen()
   }
 }
 
+static void adjust_speed()
+{ set_timer_interval(1000000 * pow(0.95, level)); }
+
 static void new_game()
 {
   memset(playfield, 0, sizeof(playfield));
@@ -448,6 +446,7 @@ static void new_game()
   level = 1;
   lines_cleared = 0;
   add_active_piece();
+  adjust_speed();
 }
 
 static bool is_complete_line(size_t y)
@@ -471,9 +470,6 @@ static int eliminate_lines()
 
   return lines? points_per_line[lines - 1] * level: 0;
 }
-
-static void adjust_speed()
-{ set_timer_interval(1000000 * pow(0.95, level)); }
 
 static void handle_piece_bottom()
 {
@@ -577,7 +573,6 @@ int main()
   welcome();
   initialize_timer();
   new_game();
-  adjust_speed();
 
   for (;;) {
     draw_screen();
@@ -613,9 +608,6 @@ int main()
       if (fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout) == EOF)
         die("fputs");
       exit(EXIT_SUCCESS);
-    default:
-      continue;
     }
-    draw_screen();
   }
 }
