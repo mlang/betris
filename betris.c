@@ -31,13 +31,18 @@ enum orientation { DOWN, LEFT, UP, RIGHT };
 enum {
   PIECES = Z + 1,
   MAX_ROTATIONS = RIGHT + 1,
-  SPAWN = DOWN, SPAWN_X = 4, SPAWN_Y = 2,
+  SPAWN = DOWN,
+  SPAWN_X = 4,
+  SPAWN_Y = 2,
   BLOCKS_PER_PIECE = 4,
-  WIDTH = 10, HEIGHT = 22,
-
-  BRAILLE_CELL_WIDTH = 2, BRAILLE_CELL_HEIGHT = 4,
-  UPPER_HALF_BLOCK = 0x2580, LOWER_HALF_BLOCK = 0x2584, FULL_BLOCK = 0x2588
+  WIDTH = 10,
+  HEIGHT = 22,
+  BRAILLE_CELL_WIDTH = 2,
+  BRAILLE_CELL_HEIGHT = 4,
   UNICODE_BRAILLE = 0x2800,
+  UPPER_HALF_BLOCK = 0x2580,
+  LOWER_HALF_BLOCK = 0x2584,
+  FULL_BLOCK = 0x2588
 };
 
 struct coord { signed char x, y; };
@@ -174,8 +179,9 @@ static bool check_overlap()
 
 static signed char get_active_piece_x_bounds()
 {
-  signed char result = active_piece.pos.x;
-  for (size_t i = 0; i != BLOCKS_PER_PIECE; i++) {
+  signed char result = active_piece_block(0).x;
+
+  for (size_t i = 1; i != BLOCKS_PER_PIECE; i++) {
     const signed char x = active_piece_block(i).x;
     if (x < result) result = x;
   }
@@ -185,19 +191,17 @@ static signed char get_active_piece_x_bounds()
 
 /* --- I/O --- */
 
-volatile sig_atomic_t alarmed;
+volatile bool alarmed;
 
 static void alarm_handler(int sig)
-{ if (sig == SIGALRM) alarmed = 1; }
+{ if (sig == SIGALRM) alarmed = true; }
 
 static bool timer_occured()
 {
   if (alarmed) {
-    alarmed = 1;
-
+    alarmed = false;
     return true;
   }
-
   return false;
 }
 
@@ -319,7 +323,7 @@ static struct termios orig_termios;
 static void disable_raw_mode()
 { tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios); }
 
-static void at_exit(void)
+static void atExit(void)
 { disable_raw_mode(); }
 
 void enable_raw_mode()
@@ -330,7 +334,7 @@ void enable_raw_mode()
     errno = ENOTTY;
     die(__FUNCTION__);
   }
-
+  atexit(atExit);
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
 
   raw = orig_termios;
@@ -350,8 +354,6 @@ void enable_raw_mode()
 
   /* put terminal in raw mode after flushing */
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) < 0) die("tcsetattr");
-
-  atexit(at_exit);
 }
 
 enum dots
@@ -512,8 +514,7 @@ static void move_left()
 {
   remove_active_piece();
   active_piece.pos.x--;
-  if (check_overlap())
-    active_piece.pos.x++;
+  if (check_overlap()) active_piece.pos.x++;
   add_active_piece();
 }
 
@@ -521,8 +522,7 @@ static void move_right()
 {
   remove_active_piece();
   active_piece.pos.x++;
-  if (check_overlap())
-    active_piece.pos.x--;
+  if (check_overlap()) active_piece.pos.x--;
   add_active_piece();
 }
 
@@ -562,6 +562,14 @@ static void welcome()
   while (read_event() == TICK) continue;
   if (fputs(ERASE_DISPLAY, stdout) == EOF) die(__FUNCTION__);
   if (fflush(stdout) == EOF) die(__FUNCTION__);
+}
+
+_Noreturn static void goodbye()
+{
+  if (fputs(ERASE_DISPLAY GOTO(5, 5) "Thanks for playing betris"
+            "\r\n\r\n", stdout) == EOF)
+    die(__FUNCTION__);
+  exit(EXIT_SUCCESS);
 }
 
 static inline void seed_rng() { srand((unsigned)time(NULL)); }
@@ -605,9 +613,7 @@ int main()
     case SMALL_LETTER_Q:
     case CTRL_Q:
     case ESCAPE:
-      if (fputs("\e[2J\e[5;5HThanks for playing betris\r\n\r\n", stdout) == EOF)
-        die("fputs");
-      exit(EXIT_SUCCESS);
+      goodbye();
     }
   }
 }
