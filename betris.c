@@ -323,9 +323,6 @@ static struct termios orig_termios;
 static void disable_raw_mode()
 { tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios); }
 
-static void atExit(void)
-{ disable_raw_mode(); }
-
 void enable_raw_mode()
 {
   struct termios raw;
@@ -334,7 +331,7 @@ void enable_raw_mode()
     errno = ENOTTY;
     die(__FUNCTION__);
   }
-  atexit(atExit);
+  atexit(disable_raw_mode);
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
 
   raw = orig_termios;
@@ -609,6 +606,13 @@ int main()
       break;
     case SMALL_LETTER_P:
       while (read_event() != SMALL_LETTER_P) continue;
+      break;
+    case PAGE_DOWN:
+    case PAGE_UP:
+    case HOME_KEY:
+    case END_KEY:
+    case INSERT_KEY:
+    case DELETE_KEY:
       break;
     case SMALL_LETTER_Q:
     case CTRL_Q:
